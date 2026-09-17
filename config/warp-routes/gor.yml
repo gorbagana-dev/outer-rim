@@ -1,0 +1,20 @@
+{
+  "name": "GOR-gorchain-solana",
+  "origin": {
+    "chain": "gorchain",
+    "type": "native",
+    "name": "GOR",
+    "symbol": "GOR",
+    "decimals": 9,
+    "remoteDecimals": 9
+  },
+  "remote": {
+    "chain": "solana",
+    "type": "collateral",
+    "token": "71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg",
+    "name": "GOR",
+    "symbol": "GOR",
+    "decimals": 6,
+    "remoteDecimals": 9
+  }
+}

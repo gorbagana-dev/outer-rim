@@ -1,0 +1,32 @@
+# Hyperlane domain / chain ids for Outer Rim.
+# RPCs are operator-supplied via .env (SOLANA_RPC_URL must not be committed).
+# Re-verify against the live clusters before a production deploy.
+#
+# Native GOR on Gorchain is the SVM native token (9 decimals, like SOL lamports).
+# Solana GOR is the existing SPL mint 71Jvq4… (6 decimals, confirmed on-chain).
+
+gorchain:
+  name: gorchain
+  chainId: 1198486093
+  domainId: 1198486093
+  protocol: sealevel
+  isTestnet: false
+  rpcUrls:
+    - http: "${GORCHAIN_RPC_URL}"
+  nativeToken:
+    name: GOR
+    symbol: GOR
+    decimals: 9
+
+solana:
+  name: solana
+  chainId: 1399811149
+  domainId: 1399811149
+  protocol: sealevel
+  isTestnet: false
+  rpcUrls:
+    - http: "${SOLANA_RPC_URL}"
+  nativeToken:
+    name: SOL
+    symbol: SOL
+    decimals: 9

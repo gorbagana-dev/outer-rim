@@ -1,0 +1,52 @@
+{
+  "chains": {
+    "gorchain": {
+      "name": "gorchain",
+      "chainId": ${GORCHAIN_CHAIN_ID},
+      "domainId": ${GORCHAIN_DOMAIN_ID},
+      "protocol": "sealevel",
+      "mailbox": "${GORCHAIN_MAILBOX}",
+      "interchainGasPaymaster": "${GORCHAIN_OVERHEAD_IGP}",
+      "interchainSecurityModule": "${GORCHAIN_ISM}",
+      "validatorAnnounce": "${GORCHAIN_VALIDATOR_ANNOUNCE}",
+      "merkleTreeHook": "${GORCHAIN_MAILBOX}",
+      "rpcUrls": [{"http": "http://rpc-placeholder.invalid"}],
+      "blocks": {
+        "estimateBlockTime": 0.4,
+        "reorgPeriod": 0
+      },
+      "index": {
+        "from": 0,
+        "chunk": 10000,
+        "mode": "sequence"
+      },
+      "nativeToken": {
+        "decimals": 9
+      }
+    },
+    "solana": {
+      "name": "solana",
+      "chainId": ${SOLANA_CHAIN_ID},
+      "domainId": ${SOLANA_DOMAIN_ID},
+      "protocol": "sealevel",
+      "mailbox": "${SOLANA_MAILBOX}",
+      "interchainGasPaymaster": "${SOLANA_OVERHEAD_IGP}",
+      "interchainSecurityModule": "${SOLANA_ISM}",
+      "validatorAnnounce": "${SOLANA_VALIDATOR_ANNOUNCE}",
+      "merkleTreeHook": "${SOLANA_MAILBOX}",
+      "rpcUrls": [{"http": "http://rpc-placeholder.invalid"}],
+      "blocks": {
+        "estimateBlockTime": 0.4,
+        "reorgPeriod": 0
+      },
+      "index": {
+        "from": 0,
+        "chunk": 10000,
+        "mode": "sequence"
+      },
+      "nativeToken": {
+        "decimals": 9
+      }
+    }
+  }
+}
