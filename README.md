@@ -31,7 +31,7 @@ There is no synthetic USDC. There is no second GOR mint on Gorchain. The Solana 
 
 Gorchain → Solana payouts come from SPL already sitting in the Solana escrow. Seed that escrow with SPL GOR before users bridge out of Gorchain. Solana → Gorchain payouts come from native GOR locked on Gorchain (or from the native collateral PDA once inbound flow has filled it).
 
-## Trust model (v1 — accepted)
+## Trust model
 
 - **ISM is 1-of-1.** Gorchain's ISM trusts the Solana validator's secp256k1 H160; Solana's ISM trusts the Gorchain validator. One Privy key authorizes messages for that origin.
 - **Gas payment enforcement is off.** Relayer `HYP_GASPAYMENTENFORCEMENT=[{"type":"none"}]` because Sealevel `process_estimate_costs` returns zeros, so on-chain fee quoting does not work. Do not pretend fees are enforced.
