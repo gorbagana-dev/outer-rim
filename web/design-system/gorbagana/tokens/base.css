@@ -1,0 +1,4 @@
+body{margin:0;background:var(--bg-app);color:var(--text-primary);font:var(--type-body);-webkit-font-smoothing:antialiased}
+a{color:var(--text-link);text-decoration:none;text-underline-offset:3px}a:hover{color:var(--text-link-hover);text-decoration:underline wavy}
+::selection{background:var(--pink-500);color:var(--white)}
+*{box-sizing:border-box}

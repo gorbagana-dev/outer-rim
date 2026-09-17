@@ -1,0 +1,9 @@
+:root{
+--space-0:0;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px;--space-16:64px;--space-20:80px;--space-24:96px;
+--radius-none:0;--radius-xs:2px;--radius-sm:4px;--radius-md:6px;--radius-lg:10px;--radius-xl:16px;--radius-pill:999px;
+--border-1:1px;--border-2:2px;--border-3:3px;
+--container-sm:640px;--container-md:960px;--container-lg:1200px;--container-xl:1440px;
+--control-sm:32px;--control-md:40px;--control-lg:48px;
+--icon-sm:16px;--icon-md:20px;--icon-lg:24px;
+--z-base:0;/* @kind other */--z-raised:10;/* @kind other */--z-sticky:100;/* @kind other */--z-overlay:1000;/* @kind other */--z-toast:1100;/* @kind other */
+}

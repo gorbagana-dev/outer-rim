@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Gorbagana">
+  <rect width="64" height="64" rx="8" fill="#0D0619"/>
+  <rect x="2" y="2" width="60" height="60" rx="7" fill="none" stroke="#39FF14" stroke-width="2"/>
+  <path d="M20 22h24l-2 26H22L20 22z" fill="#2F6B1F" stroke="#39FF14" stroke-width="1.6"/>
+  <path d="M18 22h28" stroke="#39FF14" stroke-width="2" stroke-linecap="round"/>
+  <path d="M28 18h8v4h-8z" fill="#39FF14"/>
+  <circle cx="28" cy="34" r="2.2" fill="#0B0712"/>
+  <circle cx="36" cy="34" r="2.2" fill="#0B0712"/>
+  <path d="M29 41c2 2 4 2 6 0" fill="none" stroke="#0B0712" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

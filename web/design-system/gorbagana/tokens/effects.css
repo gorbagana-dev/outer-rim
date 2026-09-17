@@ -1,0 +1,29 @@
+:root{
+/* Neon glows — the shadow system. No soft gray drop shadows anywhere. */
+--glow-acid:0 0 6px rgba(57,255,20,.7),0 0 18px rgba(57,255,20,.35);
+--glow-acid-strong:0 0 8px rgba(57,255,20,.9),0 0 28px rgba(57,255,20,.55),0 0 60px rgba(57,255,20,.25);
+--glow-pink:0 0 6px rgba(255,45,170,.7),0 0 18px rgba(255,45,170,.35);
+--glow-pink-strong:0 0 8px rgba(255,45,170,.9),0 0 28px rgba(255,45,170,.55),0 0 60px rgba(255,45,170,.25);
+--glow-cyan:0 0 6px rgba(25,230,255,.7),0 0 18px rgba(25,230,255,.35);
+--glow-purple:0 0 10px rgba(154,77,255,.5),0 0 30px rgba(122,43,224,.3);
+--glow-yellow:0 0 6px rgba(245,255,61,.7),0 0 18px rgba(245,255,61,.35);
+/* Text glows */
+--text-glow-acid:0 0 4px rgba(57,255,20,.8),0 0 14px rgba(57,255,20,.5);/* @kind shadow */
+--text-glow-pink:0 0 4px rgba(255,45,170,.8),0 0 14px rgba(255,45,170,.5);/* @kind shadow */
+--text-glow-cyan:0 0 4px rgba(25,230,255,.8),0 0 14px rgba(25,230,255,.5);/* @kind shadow */
+/* Hard "sticker" offsets — paper stickers get a flat ink shadow, not a glow */
+--shadow-sticker:3px 3px 0 var(--ink-900);
+--shadow-sticker-lg:5px 5px 0 var(--ink-900);
+--shadow-elevated:0 12px 40px rgba(0,0,0,.6),0 0 0 1px var(--border-default);
+--shadow-inset-bin:inset 0 2px 0 rgba(255,255,255,.08),inset 0 -2px 0 rgba(0,0,0,.4);
+/* Motion */
+--ease-out:cubic-bezier(.2,.8,.2,1);/* @kind other */--ease-snap:cubic-bezier(.34,1.56,.64,1);/* @kind other */--ease-linear:linear;/* @kind other */
+--dur-fast:120ms;/* @kind other */--dur-base:200ms;/* @kind other */--dur-slow:360ms;/* @kind other */--dur-flicker:1.8s;/* @kind other */
+/* Sticker tilts */
+--tilt-1:-2deg;/* @kind other */--tilt-2:1.5deg;/* @kind other */--tilt-3:-4deg;/* @kind other */--tilt-4:3deg;/* @kind other */
+/* Backgrounds */
+--bg-grid:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);/* @kind other */
+--bg-grid-size:48px 48px;/* @kind other */
+--bg-scanlines:repeating-linear-gradient(180deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px);/* @kind other */
+--blur-overlay:blur(8px);/* @kind other */
+}

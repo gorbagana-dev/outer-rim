@@ -1,0 +1,24 @@
+:root{
+/* Families — Google Fonts substitutes; brand wordmark is hand-painted graffiti (raster only) */
+--font-display:"Permanent Marker","Marker Felt","Comic Sans MS",cursive;
+--font-body:"Space Grotesk","Helvetica Neue",Arial,sans-serif;
+--font-mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+/* Sizes */
+--text-2xs:10px;--text-xs:11px;--text-sm:13px;--text-md:15px;--text-lg:18px;--text-xl:22px;--text-2xl:28px;--text-3xl:36px;--text-4xl:48px;--text-5xl:64px;--text-6xl:88px;
+/* Line heights */
+--leading-tight:1.05;--leading-snug:1.2;--leading-normal:1.5;--leading-relaxed:1.65;
+/* Weights (Permanent Marker is single-weight) */
+--weight-regular:400;--weight-medium:500;--weight-bold:700;
+/* Tracking */
+--tracking-tight:-0.02em;--tracking-normal:0;--tracking-wide:0.06em;--tracking-caps:0.14em;
+/* Composite roles */
+--type-display:400 var(--text-5xl)/var(--leading-tight) var(--font-display);
+--type-h1:400 var(--text-4xl)/var(--leading-tight) var(--font-display);
+--type-h2:400 var(--text-2xl)/var(--leading-snug) var(--font-display);
+--type-h3:700 var(--text-xl)/var(--leading-snug) var(--font-body);
+--type-body:400 var(--text-md)/var(--leading-normal) var(--font-body);
+--type-body-sm:400 var(--text-sm)/var(--leading-normal) var(--font-body);
+--type-label:700 var(--text-xs)/1 var(--font-body);
+--type-mono:400 var(--text-sm)/var(--leading-normal) var(--font-mono);
+--type-sticker:400 var(--text-lg)/1.1 var(--font-display);
+}
