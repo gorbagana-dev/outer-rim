@@ -1,0 +1,1 @@
+# Deploy artifacts (program-ids.json, agent-config.json, whitelist). Never commit secrets.

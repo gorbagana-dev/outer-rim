@@ -1,0 +1,12 @@
+.env
+keys/*
+!keys/.gitkeep
+state/*
+!state/.gitkeep
+logs/
+data/
+*.pem
+*.key
+*.json.bak
+.DS_Store
+HANDOFF.md
