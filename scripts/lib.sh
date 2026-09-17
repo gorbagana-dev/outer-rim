@@ -157,6 +157,7 @@ run_in_deployer() {
     -e IGP_BENEFICIARY_PUBKEY \
     -e GORCHAIN_VALIDATOR_ADDRESS \
     -e SOLANA_VALIDATOR_ADDRESS \
+    -e RECONFIGURE_ISM="${RECONFIGURE_ISM:-false}" \
     -e STATE_OUTPUT_DIR=/outer-rim/state \
     -e LOGS_OUTPUT_DIR=/outer-rim/logs \
     -e DEPLOYER_KEY_FILE=/keys/deployer-keypair.json \

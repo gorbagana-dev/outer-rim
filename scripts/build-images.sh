@@ -14,7 +14,6 @@ fi
 
 AGENT_TAG="${1:-outer-rim/hyperlane-agent:v2.2.0-gorbagana.1}"
 DEPLOYER_TAG="${2:-outer-rim/hyperlane-svm-deployer:v2.2.0-gorbagana.4}"
-KMS_TAG="${3:-outer-rim/hyperlane-kms-proxy:v1}"
 
 echo "Building agent → ${AGENT_TAG}"
 docker build -t "$AGENT_TAG" \
@@ -26,15 +25,11 @@ docker build -t "$DEPLOYER_TAG" \
   -f "${OUTER_RIM_ROOT}/docker/hyperlane-svm-deployer.Dockerfile" \
   "$MONOREPO"
 
-echo "Building kms-proxy → ${KMS_TAG}"
-docker build -t "$KMS_TAG" "${OUTER_RIM_ROOT}/kms-proxy"
-
 cat <<EOF
 
 Built:
   ${AGENT_TAG}
   ${DEPLOYER_TAG}
-  ${KMS_TAG}
 
 Point .env at them:
   HYPERLANE_AGENT_IMAGE=${AGENT_TAG}

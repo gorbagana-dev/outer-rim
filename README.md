@@ -33,7 +33,7 @@ Gorchain → Solana payouts come from SPL already sitting in the Solana escrow. 
 
 ## Trust model
 
-- **ISM is 1-of-1.** Gorchain's ISM trusts the Solana validator's secp256k1 H160; Solana's ISM trusts the Gorchain validator. One Privy key authorizes messages for that origin.
+- **ISM is 1-of-1.** Gorchain's ISM trusts the Solana validator's secp256k1 H160; Solana's ISM trusts the Gorchain validator. One local hex key authorizes messages for that origin.
 - **Gas payment enforcement is off.** Relayer `HYP_GASPAYMENTENFORCEMENT=[{"type":"none"}]` because Sealevel `process_estimate_costs` returns zeros, so on-chain fee quoting does not work. Do not pretend fees are enforced.
 - Agent config points `interchainGasPaymaster` at the **overhead** IGP account. Payment PDAs store the **inner** `igp_account`. If you enable enforcement later, point the indexer at the inner account.
 - Do not call mailbox `OutboxGetLatestCheckpoint` (copies a 32-byte root into a 31-byte buffer). Agents do not use it.
@@ -42,13 +42,12 @@ Gorchain → Solana payouts come from SPL already sitting in the Solana escrow. 
 
 ```
 outer-rim/
-├── docker-compose.yml      # minio, kms-proxy ×2, validator ×2, relayer
+├── docker-compose.yml      # minio, validator ×2, relayer
 ├── .env.example
 ├── config/warp-routes/gor.yml
 ├── scripts/deploy-core.sh
 ├── scripts/deploy-warp.sh
 ├── scripts/generate-keys.sh
-├── kms-proxy/              # Privy as fake AWS KMS
 └── state/                  # generated program ids (gitignored contents)
 ```
 
@@ -57,7 +56,7 @@ outer-rim/
 - Docker Compose v2
 - `solana-keygen`, `python3`, `curl`, `jq`, `openssl` (for operator scripts)
 - Funded deployer keypair on **both** chains (program deploys are not cheap)
-- Privy app with two Ethereum (secp256k1) server wallets for validators, optional Solana wallets for bridge owner / IGP oracle
+- Optional Solana pubkeys for bridge owner / IGP oracle
 - Solana RPC (Helius or similar) in `.env` — never commit the API key
 
 GHCR images `ghcr.io/gorbagana-dev/hyperlane-agent:v2.2.0-gorbagana.1` and `hyperlane-svm-deployer:v2.2.0-gorbagana.4` are private. If you cannot pull them, rebuild from `../hyperlane-monorepo-audit`:
@@ -81,9 +80,10 @@ On Apple Silicon the agent image is `linux/amd64` (compose already sets `platfor
 1. **Keys and env**
    ```bash
    cp .env.example .env
-   # fill RPCs, Privy ids, validator H160s
+   # fill RPCs
    ./scripts/generate-keys.sh
-   # fund the addresses printed in keys/addresses.env on both chains
+   # fund the SVM addresses printed in keys/addresses.env on both chains
+   # H160s are written into .env from keys/validator-ism-*.key
    ```
 2. **MinIO**
    ```bash
@@ -96,7 +96,7 @@ On Apple Silicon the agent image is `linux/amd64` (compose already sets `platfor
    ```
    Writes `state/program-ids.json` and `state/agent-config.json`.
 
-   `--force` deploys new program identities and can orphan funded programs. It is a recovery/development option, not the validator-rotation path. It requires the explicit pair `--force --confirm-new-program-ids`. Reconfigure the existing ISM for validator changes.
+   `--force` deploys new program identities and can orphan funded programs. It is a recovery/development option, not the validator-rotation path. It requires the explicit pair `--force --confirm-new-program-ids`. To rotate ISM hex keys, run `./scripts/generate-keys.sh` (existing key files are left alone; replace them only if you intend to rotate), fill `.env` H160s, then `./scripts/deploy-core.sh --reconfigure-ism` and restart validators.
 4. **Warp route** (native GOR ↔ collateral SPL)
    ```bash
    ./scripts/deploy-warp.sh
@@ -121,7 +121,7 @@ Users (or a later UI) call the warp programs:
 
 ## Secrets
 
-Live in `.env` and bind-mounted files under `keys/`. Both are gitignored. Never put key material in `state/` commits or Compose `environment:` literals.
+Live in `.env` and bind-mounted files under `keys/` (announce hex keys, ISM secp256k1 hex keys, deployer JSON). Both are gitignored. Never put key material in `state/` commits or Compose `environment:` literals. Validators load `HYP_VALIDATOR_KEY` from `ISM_KEY_FILE` inside the container.
 
 ## Rebuild / pin
 
@@ -129,7 +129,6 @@ Live in `.env` and bind-mounted files under `keys/`. Both are gitignored. Never 
 |-------|-------------|---------|
 | Agent (validator + relayer) | `ghcr.io/gorbagana-dev/hyperlane-agent:v2.2.0-gorbagana.1` | `docker/hyperlane-agent.Dockerfile` |
 | SVM deployer | `ghcr.io/gorbagana-dev/hyperlane-svm-deployer:v2.2.0-gorbagana.4` | `docker/hyperlane-svm-deployer.Dockerfile` |
-| KMS proxy | `outer-rim/hyperlane-kms-proxy:v1` (local build) | `kms-proxy/` |
 | MinIO | `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z` | upstream dated tag |
 
 SBPF version is chosen at deploy time per cluster (`enable v3` feature `5cC3foj77…`): Gorchain historically wanted v0; Solana follows the live feature gate. Do not hardcode the `.so` set.

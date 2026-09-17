@@ -1,6 +1,6 @@
 # Outer Rim — Hyperlane SVM operator stack (Gorchain ↔ Solana)
 #
-# Long-running: MinIO, KMS proxies, validators, relayer.
+# Long-running: MinIO, validators, relayer.
 # One-shot deploys live in scripts/deploy-core.sh and scripts/deploy-warp.sh.
 #
 # Images are tagged, not :latest. GHCR (ghcr.io/gorbagana-dev) is private —
@@ -8,6 +8,7 @@
 #
 # Relayer starts only after both validators are healthy.
 # Empty HYP_WHITELIST is deny-all (never relay-everything).
+# ISM keys are bind-mounted files (ISM_KEY_FILE); do not interpolate them here.
 
 name: outer-rim
 
@@ -46,50 +47,6 @@ services:
     entrypoint: ["/bin/sh", "/provision.sh"]
     networks: [outer-rim]
 
-  kms-proxy-gorchain:
-    build:
-      context: ./kms-proxy
-      dockerfile: Dockerfile
-    image: outer-rim/hyperlane-kms-proxy:v1
-    restart: unless-stopped
-    hostname: kms-proxy-gorchain
-    environment:
-      LISTEN_ADDR: ":9999"
-      PRIVY_APP_ID: ${PRIVY_APP_ID}
-      PRIVY_APP_SECRET: ${PRIVY_APP_SECRET}
-      PRIVY_WALLET_ID: ${PRIVY_WALLET_ID_GORCHAIN}
-      PRIVY_API_URL: ${PRIVY_API_URL:-https://api.privy.io}
-      EXPECTED_VALIDATOR_ADDRESS: ${GORCHAIN_VALIDATOR_ADDRESS}
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9999/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    networks: [outer-rim]
-
-  kms-proxy-solana:
-    build:
-      context: ./kms-proxy
-      dockerfile: Dockerfile
-    image: outer-rim/hyperlane-kms-proxy:v1
-    restart: unless-stopped
-    hostname: kms-proxy-solana
-    environment:
-      LISTEN_ADDR: ":9999"
-      PRIVY_APP_ID: ${PRIVY_APP_ID}
-      PRIVY_APP_SECRET: ${PRIVY_APP_SECRET}
-      PRIVY_WALLET_ID: ${PRIVY_WALLET_ID_SOLANA}
-      PRIVY_API_URL: ${PRIVY_API_URL:-https://api.privy.io}
-      EXPECTED_VALIDATOR_ADDRESS: ${SOLANA_VALIDATOR_ADDRESS}
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9999/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    networks: [outer-rim]
-
   validator-gorchain:
     image: ${HYPERLANE_AGENT_IMAGE:-ghcr.io/gorbagana-dev/hyperlane-agent:v2.2.0-gorbagana.1}
     platform: linux/amd64
@@ -99,24 +56,19 @@ services:
     depends_on:
       minio-provision:
         condition: service_completed_successfully
-      kms-proxy-gorchain:
-        condition: service_healthy
     command: ["/bin/bash", "/scripts/run-validator.sh"]
     environment:
       SIGNER_KEY_FILE: /keys/validator-gorchain.key
-      KMS_HOST: kms-proxy-gorchain
+      ISM_KEY_FILE: /keys/validator-ism-gorchain.key
       HYP_ORIGINCHAINNAME: gorchain
       HYP_DB: /data/validator
       HYP_CHECKPOINTSYNCER_TYPE: s3
       HYP_CHECKPOINTSYNCER_BUCKET: hyperlane-validator-gorchain-primary
       HYP_CHECKPOINTSYNCER_REGION: us-east-1
-      HYP_VALIDATOR_TYPE: aws
-      HYP_VALIDATOR_ID: ${PRIVY_WALLET_ID_GORCHAIN}
-      HYP_VALIDATOR_REGION: us-east-1
+      HYP_VALIDATOR_TYPE: hexKey
       HYP_METRICSPORT: "9090"
       CONFIG_FILES: /config/agent-config.json
       HYP_CHAINS_GORCHAIN_CUSTOMRPCURLS: ${GORCHAIN_RPC_URL}
-      AWS_ENDPOINT_URL_KMS: http://kms-proxy-gorchain:9999
       AWS_ENDPOINT_URL_S3: http://minio:9000
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: ${GORCHAIN_PRIMARY_KEY_ID}
@@ -145,24 +97,19 @@ services:
     depends_on:
       minio-provision:
         condition: service_completed_successfully
-      kms-proxy-solana:
-        condition: service_healthy
     command: ["/bin/bash", "/scripts/run-validator.sh"]
     environment:
       SIGNER_KEY_FILE: /keys/validator-solana.key
-      KMS_HOST: kms-proxy-solana
+      ISM_KEY_FILE: /keys/validator-ism-solana.key
       HYP_ORIGINCHAINNAME: solana
       HYP_DB: /data/validator
       HYP_CHECKPOINTSYNCER_TYPE: s3
       HYP_CHECKPOINTSYNCER_BUCKET: hyperlane-validator-solana-primary
       HYP_CHECKPOINTSYNCER_REGION: us-east-1
-      HYP_VALIDATOR_TYPE: aws
-      HYP_VALIDATOR_ID: ${PRIVY_WALLET_ID_SOLANA}
-      HYP_VALIDATOR_REGION: us-east-1
+      HYP_VALIDATOR_TYPE: hexKey
       HYP_METRICSPORT: "9090"
       CONFIG_FILES: /config/agent-config.json
       HYP_CHAINS_SOLANA_CUSTOMRPCURLS: ${SOLANA_RPC_URL}
-      AWS_ENDPOINT_URL_KMS: http://kms-proxy-solana:9999
       AWS_ENDPOINT_URL_S3: http://minio:9000
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: ${SOLANA_PRIMARY_KEY_ID}

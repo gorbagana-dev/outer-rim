@@ -6,7 +6,26 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
 . "${SCRIPT_DIR}/lib.sh"
 load_env
-parse_force "$@"
+
+RECONFIGURE_ISM="${RECONFIGURE_ISM:-false}"
+CORE_ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --reconfigure-ism) RECONFIGURE_ISM=true ;;
+    *) CORE_ARGS+=("$a") ;;
+  esac
+done
+if [ "${#CORE_ARGS[@]}" -gt 0 ]; then
+  parse_force "${CORE_ARGS[@]}"
+else
+  parse_force
+fi
+if [ "$RECONFIGURE_ISM" = "true" ] && [ "${FORCE_REDEPLOY:-false}" = "true" ]; then
+  echo "ERROR: --reconfigure-ism cannot be combined with --force." >&2
+  echo "Reconfigure updates the existing ISM validator set; --force deploys new program IDs." >&2
+  exit 1
+fi
+export RECONFIGURE_ISM
 
 if [ "${OUTER_RIM_IN_CONTAINER:-}" != "1" ]; then
   require_cmd docker
@@ -52,11 +71,12 @@ check_existing_deployment() {
   fi
 
   echo "All recorded core programs exist on-chain."
-  echo "Pass --force (FORCE_REDEPLOY=true) to redeploy. Exiting."
+  echo "Pass --reconfigure-ism to update ISM validator H160s without new program IDs."
+  echo "Pass --force --confirm-new-program-ids to redeploy (can orphan funded programs)."
   exit 0
 }
 
-if [ "${FORCE_REDEPLOY:-false}" != "true" ]; then
+if [ "${RECONFIGURE_ISM:-false}" != "true" ] && [ "${FORCE_REDEPLOY:-false}" != "true" ]; then
   check_existing_deployment
 fi
 
@@ -80,6 +100,66 @@ mkdir -p "${ENVIRONMENTS_DIR}"
 GAS_ORACLE_CONFIG="/outer-rim/config/gas-oracle-configs.json"
 REGISTRY_DIR="/outer-rim/config"
 MULTISIG_CONFIG_DIR="/outer-rim/config/multisig"
+
+configure_ism() {
+  local gor_ism="$1" sol_ism="$2"
+  section "Configuring Multisig ISM (1-of-1, each chain trusts the other validator)"
+  RENDERED_MULTISIG_DIR="${WORK_DIR}/multisig"
+  mkdir -p "${RENDERED_MULTISIG_DIR}"
+  envsubst < "${MULTISIG_CONFIG_DIR}/gorchain-multisig.json.tmpl" > "${RENDERED_MULTISIG_DIR}/gorchain-multisig.json"
+  envsubst < "${MULTISIG_CONFIG_DIR}/solana-multisig.json.tmpl" > "${RENDERED_MULTISIG_DIR}/solana-multisig.json"
+
+  echo "Configuring ISM on Gorchain (program: ${gor_ism})..."
+  hyperlane-sealevel-client \
+    --url "${GORCHAIN_RPC_URL}" \
+    --keypair "${DEPLOYER_KEY_FILE}" \
+    multisig-ism-message-id configure \
+    --program-id "${gor_ism}" \
+    --multisig-config-file "${RENDERED_MULTISIG_DIR}/gorchain-multisig.json" \
+    --registry "${RENDERED_REGISTRY_DIR}"
+
+  echo "Configuring ISM on Solana (program: ${sol_ism})..."
+  hyperlane-sealevel-client \
+    --url "${SOLANA_RPC_URL}" \
+    --keypair "${DEPLOYER_KEY_FILE}" \
+    multisig-ism-message-id configure \
+    --program-id "${sol_ism}" \
+    --multisig-config-file "${RENDERED_MULTISIG_DIR}/solana-multisig.json" \
+    --registry "${RENDERED_REGISTRY_DIR}"
+}
+
+write_multisig_state() {
+  local gor_ms sol_ms
+  gor_ms=$(cat "${RENDERED_MULTISIG_DIR}/gorchain-multisig.json")
+  sol_ms=$(cat "${RENDERED_MULTISIG_DIR}/solana-multisig.json")
+  jq -nS --argjson g "${gor_ms}" --argjson s "${sol_ms}" \
+    '{gorchain: $g, solana: $s}' > "${STATE_DIR}/multisig-config.json"
+}
+
+if [ "${RECONFIGURE_ISM:-false}" = "true" ]; then
+  PIDS="${STATE_DIR}/program-ids.json"
+  if [ ! -s "$PIDS" ] || [ "$(cat "$PIDS")" = "{}" ]; then
+    echo "ERROR: ${PIDS} is missing. Deploy core before --reconfigure-ism." >&2
+    exit 1
+  fi
+  GORCHAIN_ISM_ID=$(jq -r '.gorchain.multisig_ism_message_id // empty' "$PIDS")
+  SOLANA_ISM_ID=$(jq -r '.solana.multisig_ism_message_id // empty' "$PIDS")
+  if [ -z "$GORCHAIN_ISM_ID" ] || [ -z "$SOLANA_ISM_ID" ]; then
+    echo "ERROR: ${PIDS} is missing multisig_ism_message_id." >&2
+    exit 1
+  fi
+  section "Reconfiguring ISM validator set (no new program IDs)"
+  RENDERED_REGISTRY_DIR="${WORK_DIR}/registry"
+  mkdir -p "${RENDERED_REGISTRY_DIR}/chains"
+  envsubst < "${REGISTRY_DIR}/metadata.yaml.tmpl" > "${RENDERED_REGISTRY_DIR}/chains/metadata.yaml"
+  configure_ism "$GORCHAIN_ISM_ID" "$SOLANA_ISM_ID"
+  write_multisig_state
+  echo
+  echo "=== ISM reconfigure complete ==="
+  echo "Updated ${STATE_DIR}/multisig-config.json"
+  echo "Restart validators so they sign with the new local hex keys."
+  exit 0
+fi
 
 section "Rendering config templates"
 RENDERED_REGISTRY_DIR="${WORK_DIR}/registry"
@@ -182,32 +262,9 @@ if [ "$VERIFY_FAILED" -ne 0 ]; then
   exit 1
 fi
 
-section "Configuring Multisig ISM (1-of-1, each chain trusts the other validator)"
-RENDERED_MULTISIG_DIR="${WORK_DIR}/multisig"
-mkdir -p "${RENDERED_MULTISIG_DIR}"
-envsubst < "${MULTISIG_CONFIG_DIR}/gorchain-multisig.json.tmpl" > "${RENDERED_MULTISIG_DIR}/gorchain-multisig.json"
-envsubst < "${MULTISIG_CONFIG_DIR}/solana-multisig.json.tmpl" > "${RENDERED_MULTISIG_DIR}/solana-multisig.json"
-
 GORCHAIN_ISM_ID=$(jq -r '.multisig_ism_message_id' "${GORCHAIN_PROGRAMS}")
 SOLANA_ISM_ID=$(jq -r '.multisig_ism_message_id' "${SOLANA_PROGRAMS}")
-
-echo "Configuring ISM on Gorchain (program: ${GORCHAIN_ISM_ID})..."
-hyperlane-sealevel-client \
-  --url "${GORCHAIN_RPC_URL}" \
-  --keypair "${DEPLOYER_KEY_FILE}" \
-  multisig-ism-message-id configure \
-  --program-id "${GORCHAIN_ISM_ID}" \
-  --multisig-config-file "${RENDERED_MULTISIG_DIR}/gorchain-multisig.json" \
-  --registry "${RENDERED_REGISTRY_DIR}"
-
-echo "Configuring ISM on Solana (program: ${SOLANA_ISM_ID})..."
-hyperlane-sealevel-client \
-  --url "${SOLANA_RPC_URL}" \
-  --keypair "${DEPLOYER_KEY_FILE}" \
-  multisig-ism-message-id configure \
-  --program-id "${SOLANA_ISM_ID}" \
-  --multisig-config-file "${RENDERED_MULTISIG_DIR}/solana-multisig.json" \
-  --registry "${RENDERED_REGISTRY_DIR}"
+configure_ism "$GORCHAIN_ISM_ID" "$SOLANA_ISM_ID"
 
 section "Configuring IGP gas oracle"
 GORCHAIN_IGP_ID=$(jq -r '.igp_program_id' "${GORCHAIN_PROGRAMS}")
@@ -350,10 +407,7 @@ jq -nS --argjson g "${GORCHAIN_DATA}" --argjson s "${SOLANA_DATA}" \
 cp "${WORK_DIR}/agent-config.json" "${STATE_DIR}/agent-config.json"
 cp "${GAS_ORACLE_CONFIG}" "${STATE_DIR}/gas-oracle-config.json"
 
-GORCHAIN_MS=$(cat "${RENDERED_MULTISIG_DIR}/gorchain-multisig.json")
-SOLANA_MS=$(cat "${RENDERED_MULTISIG_DIR}/solana-multisig.json")
-jq -nS --argjson g "${GORCHAIN_MS}" --argjson s "${SOLANA_MS}" \
-  '{gorchain: $g, solana: $s}' > "${STATE_DIR}/multisig-config.json"
+write_multisig_state
 
 rm -rf "${STATE_DIR}/registry"
 mkdir -p "${STATE_DIR}/registry"
