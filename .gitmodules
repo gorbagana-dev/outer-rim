@@ -1,0 +1,4 @@
+[submodule "hyperlane-monorepo"]
+	path = hyperlane-monorepo
+	url = https://github.com/gorbagana-dev/hyperlane-monorepo.git
+	branch = gorbagana

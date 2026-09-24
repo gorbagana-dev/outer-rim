@@ -1,13 +1,16 @@
 # syntax=docker/dockerfile:1.4
 # gorbagana-dev-hyperlane-agent
-# Build context: hyperlane-monorepo-audit (or the gorbagana Hyperlane fork).
-#   docker build -f docker/hyperlane-agent.Dockerfile -t outer-rim/hyperlane-agent:v2.2.0-gorbagana.1 ../hyperlane-monorepo-audit
+# Build context: the hyperlane-monorepo git submodule.
+# Prefer scripts/build-images.sh. Manual:
+#   GITDIR=$(git -C hyperlane-monorepo rev-parse --absolute-git-dir)
+#   docker build -f docker/hyperlane-agent.Dockerfile \
+#     --build-context gitdir="$GITDIR" \
+#     -t outer-rim/hyperlane-agent:v2.2.0-gorbagana.1 \
+#     hyperlane-monorepo
 # Hyperlane validator + relayer, built from the gorbagana monorepo fork. The
-# KMS custom-endpoint and S3 path-style fixes for MinIO-compatible storage are
-# committed in the fork (formerly applied here as build-time patches).
-#
-# Build context: ~/cerc/hyperlane-monorepo (or equivalent)
-# Invoked via: docker build -f <this-file> ~/cerc/hyperlane-monorepo
+# S3 path-style fix for MinIO-compatible checkpoint storage is committed in the
+# fork (formerly applied here as build-time patches). Validators sign with a
+# local hexKey signer; see scripts/build-images.sh for the build invocation.
 
 # ============================================================
 # Stage 1: Builder — compile validator and relayer binaries
@@ -26,8 +29,10 @@ ENV SCCACHE_DIR=/sccache
 
 WORKDIR /usr/src/rust/main
 
-# Copy git metadata for vergen build-time info
-COPY .git ../../.git
+# Copy git metadata for vergen. Named context `gitdir` is the resolved
+# .git directory so this works when hyperlane-monorepo is a submodule
+# (its .git is a pointer file, not a directory).
+COPY --from=gitdir . ../../.git
 
 # Copy workspace crates
 COPY rust/main/agents ./agents
@@ -45,7 +50,7 @@ COPY rust/main/Cargo.lock ./
 COPY rust/sealevel ../sealevel
 
 # Build validator and relayer
-# (KMS endpoint + S3 path-style support are committed in the gorbagana fork.)
+# (S3 path-style support for MinIO is committed in the gorbagana fork.)
 # Note: we clear sccache before building to avoid stale objects from prior builds.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \

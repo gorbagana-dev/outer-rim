@@ -1,6 +1,8 @@
 # hyperlane-svm-deployer
-# Build context: hyperlane-monorepo-audit (or the gorbagana Hyperlane fork).
-#   docker build -f docker/hyperlane-svm-deployer.Dockerfile -t outer-rim/hyperlane-svm-deployer:v2.2.0-gorbagana.4 ../hyperlane-monorepo-audit
+# Build context: the hyperlane-monorepo git submodule.
+#   docker build -f docker/hyperlane-svm-deployer.Dockerfile \
+#     -t outer-rim/hyperlane-svm-deployer:v2.2.0-gorbagana.4 \
+#     hyperlane-monorepo
 #
 # Original note:
 # Multi-stage build from upstream Hyperlane @ 16c056a0 (fork tag sealevel-gorbagana-v1.0.0).
@@ -10,9 +12,9 @@
 # target chain at runtime. Produces: hyperlane-sealevel-client binary, v0+v3 .so
 # program artifacts, solana-verify
 #
-# Build context: a checkout of the Gorbagana Hyperlane monorepo fork.
 # Invoked via scripts/build-images.sh.
-# Note: deploy script is ConfigMap-mounted at runtime, not baked into the image.
+# Note: deploy scripts are bind-mounted at runtime (see run_in_deployer in
+# scripts/lib.sh), not baked into the image.
 
 # ============================================================
 # Stage 1: Builder — compile sealevel-client and .so programs
@@ -111,10 +113,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_CLI_VERSION}/install)" && \
     mv /root/.local/share/solana/install/active_release/bin/* /usr/local/bin/ && \
     rm -rf /root/.local/share/solana
-
-# Install kubectl for ConfigMap/Secret creation
-RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
-    && chmod +x kubectl && mv kubectl /usr/local/bin/
 
 # Copy sealevel-client binary
 COPY --from=builder /build/hyperlane-monorepo/rust/sealevel/target/release/hyperlane-sealevel-client /usr/local/bin/

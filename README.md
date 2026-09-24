@@ -42,6 +42,7 @@ Gorchain → Solana payouts come from SPL already sitting in the Solana escrow. 
 
 ```
 outer-rim/
+├── hyperlane-monorepo/     # git submodule — Docker build context
 ├── docker-compose.yml      # minio, validator ×2, relayer
 ├── .env.example
 ├── config/warp-routes/gor.yml
@@ -59,7 +60,15 @@ outer-rim/
 - Optional Solana pubkeys for bridge owner / IGP oracle
 - Solana RPC (Helius or similar) in `.env` — never commit the API key
 
-GHCR images `ghcr.io/gorbagana-dev/hyperlane-agent:v2.2.0-gorbagana.1` and `hyperlane-svm-deployer:v2.2.0-gorbagana.4` are private. If you cannot pull them, rebuild from `../hyperlane-monorepo-audit`:
+Clone with the Hyperlane fork (needed only if you rebuild images):
+
+```bash
+git clone --recurse-submodules https://github.com/gorbagana-dev/outer-rim.git
+# existing checkout:
+git submodule update --init --recursive
+```
+
+GHCR images `ghcr.io/gorbagana-dev/hyperlane-agent:v2.2.0-gorbagana.1` and `hyperlane-svm-deployer:v2.2.0-gorbagana.4` are private. If you cannot pull them, rebuild from the `hyperlane-monorepo` submodule:
 
 ```bash
 ./scripts/build-images.sh
