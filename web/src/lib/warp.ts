@@ -2,6 +2,12 @@ import type { PublicBridgeConfig } from "./types";
 import { CHAINS, GOR_DECIMALS, GOR_MINT, type ChainId } from "./chains";
 import { isPubkeyLike } from "./types";
 
+type BuiltTx = {
+  transaction: import("@solana/web3.js").Transaction;
+  /** Ephemeral message-account signer. Must re-sign after the UI refreshes the blockhash. */
+  signers: import("@solana/web3.js").Keypair[];
+};
+
 type WarpHandle = {
   getTransferRemoteTxs: (args: {
     origin: ChainId;
@@ -9,7 +15,7 @@ type WarpHandle = {
     amountHuman: string;
     sender: string;
     recipient: string;
-  }) => Promise<{ transaction: import("@solana/web3.js").Transaction }[]>;
+  }) => Promise<BuiltTx[]>;
 };
 
 let cached: Promise<WarpHandle> | null = null;
@@ -115,19 +121,35 @@ async function assembleWarp(config: PublicBridgeConfig): Promise<WarpHandle> {
         scaleHuman(amountHuman, Number(originToken.decimals)),
       );
 
-      const txs = await warpCore.getTransferRemoteTxs({
-        originTokenAmount,
-        destination,
-        sender,
-        recipient,
-      });
+      const { Keypair } = await import("@solana/web3.js");
+      const captured: InstanceType<typeof Keypair>[] = [];
+      const generate = Keypair.generate;
+      Keypair.generate = () => {
+        const kp = generate.call(Keypair);
+        captured.push(kp);
+        return kp;
+      };
+      let txs;
+      try {
+        txs = await warpCore.getTransferRemoteTxs({
+          originTokenAmount,
+          destination,
+          sender,
+          recipient,
+        });
+      } finally {
+        Keypair.generate = generate;
+      }
 
       return txs.map((tx: { transaction?: unknown; tx?: unknown }) => {
         const transaction = (tx.transaction ?? tx.tx) as import("@solana/web3.js").Transaction;
         if (!transaction) {
           throw new Error("WarpCore returned an empty transaction.");
         }
-        return { transaction };
+        const signers = captured.filter((kp) =>
+          transaction.signatures.some((sig) => sig.publicKey.equals(kp.publicKey)),
+        );
+        return { transaction, signers };
       });
     },
   };
