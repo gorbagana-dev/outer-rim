@@ -115,11 +115,11 @@ redact_deploy_logs() {
   escaped="${escaped//&/\\&}"
 
   if [ -n "$escaped" ]; then
-    sed -E \
+    sed -u -E \
       -e "s#${escaped}#<SOLANA_RPC_URL>#g" \
       -e 's#api-key=[A-Za-z0-9_-]+#api-key=<REDACTED>#g'
   else
-    sed -E 's#api-key=[A-Za-z0-9_-]+#api-key=<REDACTED>#g'
+    sed -u -E 's#api-key=[A-Za-z0-9_-]+#api-key=<REDACTED>#g'
   fi
 }
 
