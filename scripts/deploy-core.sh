@@ -59,7 +59,7 @@ check_existing_deployment() {
     for field in mailbox validator_announce multisig_ism_message_id igp_program_id; do
       program_id=$(jq -r --arg chain "$chain" --arg field "$field" \
         '.[$chain][$field] // empty' "$pids")
-      if [ -z "$program_id" ] || ! solana program show "$program_id" -u "$rpc" >/dev/null 2>&1; then
+      if [ -z "$program_id" ] || ! solana program show "$program_id" -u "$rpc" -k "${DEPLOYER_KEY_FILE}" >/dev/null 2>&1; then
         echo "ERROR: recorded ${chain}.${field} is missing or not an executable program." >&2
         missing=1
       fi
