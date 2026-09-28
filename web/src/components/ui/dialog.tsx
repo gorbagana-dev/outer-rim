@@ -3,7 +3,8 @@
 import { cn } from "@/lib/cn";
 import { IconButton } from "./icon-button";
 import { X } from "lucide-react";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -29,6 +30,9 @@ export function Dialog({
   const sticker = variant === "sticker";
   const titleId = useId();
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -45,11 +49,11 @@ export function Dialog({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-[var(--surface-overlay)] backdrop-blur-[8px]"
+      className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-[var(--surface-overlay)] p-4 backdrop-blur-[8px] sm:p-6"
       onClick={onClose}
     >
       <div
@@ -58,14 +62,14 @@ export function Dialog({
         aria-labelledby={title ? titleId : undefined}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "w-full flex flex-col overflow-hidden motion-safe:animate-[gor-enter_200ms_var(--ease-out)]",
+          "my-auto flex w-full max-h-[calc(100dvh-2rem)] min-h-0 flex-col overflow-hidden motion-safe:animate-[gor-enter_200ms_var(--ease-out)]",
           sticker
             ? "bg-[var(--surface-sticker)] text-[var(--text-on-sticker)] border-2 border-[var(--ink-900)] rounded-xs shadow-[var(--shadow-sticker-lg)] -rotate-1"
             : "bg-[var(--void-2)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded-lg shadow-elevated shadow-purple",
         )}
         style={{ maxWidth: width }}
       >
-        <div className="flex items-start gap-3 px-5 pt-5">
+        <div className="flex shrink-0 items-start gap-3 px-5 pt-5">
           <div className="min-w-0 flex-1">
             {eyebrow && (
               <div
@@ -93,11 +97,21 @@ export function Dialog({
             <X size={16} aria-hidden />
           </IconButton>
         </div>
-        <div className={cn("p-5 font-body", sticker ? "text-[var(--ink-900)]" : "text-[var(--text-secondary)]")}>
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto p-5 font-body",
+            sticker ? "text-[var(--ink-900)]" : "text-[var(--text-secondary)]",
+          )}
+        >
           {children}
         </div>
-        {footer && <div className="flex justify-end gap-2.5 px-5 pb-5">{footer}</div>}
+        {footer && (
+          <div className="flex shrink-0 justify-end gap-2.5 border-t border-[var(--border-subtle)] px-5 py-4">
+            {footer}
+          </div>
+        )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

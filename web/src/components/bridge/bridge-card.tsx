@@ -229,7 +229,7 @@ export function BridgeCard({
             id={amountId}
             name="amount"
             label="Amount"
-            hint="Same $GOR on the far side. Decimals: 9 native / 6 SPL."
+            hint="Same $GOR on the far side."
             error={amountError}
             placeholder="0.00"
             inputMode="decimal"
@@ -389,9 +389,6 @@ function ChainRow({
             <span aria-label={receive.aria}>{receive.text}</span> $GOR
           </p>
         )}
-        <p className="m-0 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          {chain === "gorchain" ? "Native · 9 dec" : "SPL · 6 dec"}
-        </p>
       </div>
     </div>
   );

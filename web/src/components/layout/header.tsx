@@ -14,8 +14,8 @@ export function Header({
   historyOpen: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-[100] flex items-center gap-4 md:gap-8 h-16 px-4 md:px-8 bg-[rgba(13,6,25,0.75)] backdrop-blur-[8px] border-b border-[var(--border-subtle)]">
-      <a href="/" className="flex items-center gap-2.5 no-underline text-inherit hover:no-underline">
+    <header className="flex items-center gap-4 md:gap-8 h-16 px-4 md:px-8 bg-[rgba(13,6,25,0.75)] backdrop-blur-[8px] border-b border-[var(--border-subtle)]">
+      <a href="/" className="flex shrink-0 items-center gap-2.5 whitespace-nowrap no-underline text-inherit hover:no-underline">
         <img
           src="/gorbagana-mark.svg"
           alt=""
@@ -26,7 +26,7 @@ export function Header({
         <span className="hidden sm:inline">
           <Wordmark />
         </span>
-        <span className="hidden md:inline font-body text-[11px] font-bold uppercase tracking-[0.14em] text-pink-500 ml-1">
+        <span className="ml-1 hidden font-body text-[11px] font-bold uppercase tracking-[0.14em] text-pink-500 lg:inline">
           Outer Rim
         </span>
       </a>

@@ -2,6 +2,7 @@
 
 import { BridgeCard } from "@/components/bridge/bridge-card";
 import { HistoryDrawer } from "@/components/bridge/history-drawer";
+import { BridgeNotice } from "@/components/layout/bridge-notice";
 import { Header } from "@/components/layout/header";
 import { Footer, Marquee } from "@/components/layout/chrome";
 import { SunsetGrid } from "@/components/layout/sunset-grid";
@@ -35,13 +36,16 @@ export function HomeView() {
   const config = useBridgeConfig();
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-app)]">
-      <Header onHistory={() => setHistoryOpen(true)} historyOpen={historyOpen} />
+    <div className="min-h-screen flex flex-col overflow-x-clip bg-[var(--bg-app)]">
+      <div className="sticky top-0 z-[100]">
+        <BridgeNotice />
+        <Header onHistory={() => setHistoryOpen(true)} historyOpen={historyOpen} />
+      </div>
       <Marquee />
       <main className="relative flex-1">
         <section className="relative overflow-hidden border-b border-[var(--border-subtle)] bg-[var(--gradient-void)]">
           <SunsetGrid />
-          <div className="relative mx-auto max-w-container px-4 md:px-8 pt-10 pb-16 md:pt-16 md:pb-24 grid lg:grid-cols-[1.05fr_0.95fr] gap-10 items-start">
+          <div className="relative mx-auto max-w-container px-4 md:px-8 pt-10 pb-16 md:pt-16 md:pb-24 grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-10 items-start">
             <div
               className="motion-enter flex flex-col gap-5 max-w-xl"
               style={{ animationDelay: `${TIMING.hero}ms` }}
@@ -66,7 +70,7 @@ export function HomeView() {
                 Hyperlane warp. Landfill manners.
               </p>
               <p className="m-0 font-mono text-xs text-[var(--text-secondary)]">
-                Mint {truncateAddress(GOR_MINT, 6)} · 9 dec native · 6 dec SPL
+                Mint {truncateAddress(GOR_MINT, 6)}
               </p>
             </div>
             <div className="motion-enter" style={{ animationDelay: "80ms" }}>
