@@ -56,7 +56,9 @@ so_name_for_type() {
   esac
 }
 
-WORK_DIR="/tmp/hyperlane-warp-deploy"
+# Persist under state/ so an interrupted deploy reuses program keypairs
+# instead of deploying new IDs. /tmp dies with the container.
+WORK_DIR="${STATE_DIR}/.warp-work"
 ENVIRONMENTS_DIR="${WORK_DIR}/environments"
 ENVIRONMENT="e2e"
 mkdir -p "${ENVIRONMENTS_DIR}" "${WORK_DIR}/output"
@@ -147,7 +149,7 @@ deploy_route() {
           echo "ERROR: cannot check on-chain program for ${CHAIN_NAME}"
           exit 1
         fi
-        if ! solana program show "$PROGRAM_ID" -u "$RPC_URL" >/dev/null 2>&1; then
+        if ! solana program show "$PROGRAM_ID" -u "$RPC_URL" -k "${DEPLOYER_KEY_FILE}" >/dev/null 2>&1; then
           echo "ERROR: recorded warp program ${PROGRAM_ID} on ${CHAIN_NAME} is not executable."
           missing=1
         fi
@@ -159,6 +161,11 @@ deploy_route() {
       echo "Warp route ${WARP_ROUTE_NAME} already on-chain. Pass --force to redeploy. Skipping."
       return 0
     fi
+  fi
+
+  if [ "${FORCE_REDEPLOY:-false}" = "true" ]; then
+    echo "WARNING: --force will generate NEW warp program IDs and orphan any already-deployed route programs."
+    rm -rf "${ENVIRONMENTS_DIR}/${ENVIRONMENT}/warp-routes/${WARP_ROUTE_NAME}"
   fi
 
   echo "Warp route name: ${WARP_ROUTE_NAME}"
