@@ -101,7 +101,7 @@ services:
     environment:
       SIGNER_KEY_FILE: /keys/validator-solana.key
       ISM_KEY_FILE: /keys/validator-ism-solana.key
-      HYP_ORIGINCHAINNAME: solana
+      HYP_ORIGINCHAINNAME: solanamainnet
       HYP_DB: /data/validator
       HYP_CHECKPOINTSYNCER_TYPE: s3
       HYP_CHECKPOINTSYNCER_BUCKET: hyperlane-validator-solana-primary
@@ -109,7 +109,7 @@ services:
       HYP_VALIDATOR_TYPE: hexKey
       HYP_METRICSPORT: "9090"
       CONFIG_FILES: /config/agent-config.json
-      HYP_CHAINS_SOLANA_CUSTOMRPCURLS: ${SOLANA_RPC_URL}
+      HYP_CHAINS_SOLANAMAINNET_CUSTOMRPCURLS: ${SOLANA_RPC_URL}
       AWS_ENDPOINT_URL_S3: http://minio:9000
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: ${SOLANA_PRIMARY_KEY_ID}
@@ -144,7 +144,7 @@ services:
     environment:
       CONFIG_FILES: /config/agent-config.json
       HYP_CHAINS_GORCHAIN_CUSTOMRPCURLS: ${GORCHAIN_RPC_URL}
-      HYP_CHAINS_SOLANA_CUSTOMRPCURLS: ${SOLANA_RPC_URL}
+      HYP_CHAINS_SOLANAMAINNET_CUSTOMRPCURLS: ${SOLANA_RPC_URL}
       # Sealevel process_estimate_costs returns zeros; OnChainFeeQuoting does not work.
       # v1 keeps enforcement off. Do not pretend fees are collected.
       HYP_GASPAYMENTENFORCEMENT: '[{"type": "none"}]'

@@ -86,7 +86,7 @@ gen_keypair_json deployer-keypair.json  "deployer — deploys programs; fund hea
 gen_hex_key validator-gorchain.key      "gorchain validator announce (HYP_DEFAULTSIGNER_KEY)"
 gen_hex_key validator-solana.key        "solana validator announce (HYP_DEFAULTSIGNER_KEY)"
 gen_hex_key relayer-gorchain.key        "relayer gorchain signer (HYP_CHAINS_GORCHAIN_SIGNER_KEY)"
-gen_hex_key relayer-solana.key          "relayer solana signer (HYP_CHAINS_SOLANA_SIGNER_KEY)"
+gen_hex_key relayer-solana.key          "relayer solana signer (HYP_CHAINS_SOLANAMAINNET_SIGNER_KEY)"
 gen_secp256k1_key validator-ism-gorchain.key "gorchain ISM checkpoint signer (HYP_VALIDATOR_KEY)"
 gen_secp256k1_key validator-ism-solana.key   "solana ISM checkpoint signer (HYP_VALIDATOR_KEY)"
 

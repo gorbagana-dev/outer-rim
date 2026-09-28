@@ -33,11 +33,11 @@ read_hex_key() {
 }
 
 HYP_CHAINS_GORCHAIN_SIGNER_KEY="$(read_hex_key /keys/relayer-gorchain.key)"
-HYP_CHAINS_SOLANA_SIGNER_KEY="$(read_hex_key /keys/relayer-solana.key)"
-export HYP_CHAINS_GORCHAIN_SIGNER_KEY HYP_CHAINS_SOLANA_SIGNER_KEY
+HYP_CHAINS_SOLANAMAINNET_SIGNER_KEY="$(read_hex_key /keys/relayer-solana.key)"
+export HYP_CHAINS_GORCHAIN_SIGNER_KEY HYP_CHAINS_SOLANAMAINNET_SIGNER_KEY
 
 exec ./relayer \
   --db /data/relayer \
-  --relayChains gorchain,solana \
+  --relayChains gorchain,solanamainnet \
   --allowLocalCheckpointSyncers false \
   --metricsPort 9091
