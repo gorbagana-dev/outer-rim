@@ -18,7 +18,7 @@ bun run dev
 
 Open http://localhost:3000.
 
-The browser never sees RPC API keys. `/api/rpc/gorchain` and `/api/rpc/solana` proxy an allowlisted JSON-RPC set. `/api/config` also reads `../state/program-ids.json` and warp deploy outputs when they exist.
+The browser never sees RPC API keys. `/api/rpc/gorchain` and `/api/rpc/solana` proxy an allowlisted JSON-RPC set. `/api/config` reads `../state/program-ids.json` and `../state/warp-routes/*/warp-deploy-outputs/program-ids.json` when they exist.
 
 ## Wallets
 

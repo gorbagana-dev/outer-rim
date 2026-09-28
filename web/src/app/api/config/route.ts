@@ -13,6 +13,36 @@ async function readJson(file: string) {
   }
 }
 
+async function readWarpProgramIds(stateDir: string) {
+  const preferred = path.join(
+    stateDir,
+    "warp-routes",
+    "GOR-gorchain-solana",
+    "warp-deploy-outputs",
+    "program-ids.json",
+  );
+  const direct = await readJson(preferred);
+  if (direct) return direct;
+
+  try {
+    const routesDir = path.join(stateDir, "warp-routes");
+    const names = await fs.readdir(routesDir);
+    for (const name of names) {
+      const candidate = path.join(
+        routesDir,
+        name,
+        "warp-deploy-outputs",
+        "program-ids.json",
+      );
+      const json = await readJson(candidate);
+      if (json) return json;
+    }
+  } catch {
+    // no warp-routes dir yet
+  }
+  return null;
+}
+
 function str(value: unknown): string {
   if (typeof value === "string") return value;
   if (value && typeof value === "object" && "base58" in value) {
@@ -25,16 +55,7 @@ function str(value: unknown): string {
 export async function GET() {
   const stateDir = path.resolve(process.cwd(), "..", "state");
   const core = await readJson(path.join(stateDir, "program-ids.json"));
-  const warp = await readJson(
-    path.join(
-      stateDir,
-      "generated",
-      "warp-routes",
-      "gor",
-      "warp-deploy-outputs",
-      "program-ids.json",
-    ),
-  );
+  const warp = await readWarpProgramIds(stateDir);
 
   const gorchainMailbox =
     process.env.NEXT_PUBLIC_GORCHAIN_MAILBOX || str(core?.gorchain?.mailbox);
