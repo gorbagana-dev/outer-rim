@@ -1,5 +1,5 @@
 import type { WalletContextState } from "@solana/wallet-adapter-react";
-import type { Keypair, Transaction } from "@solana/web3.js";
+import { Transaction, type Keypair } from "@solana/web3.js";
 import { connectionFor } from "./balances";
 import { getWarp } from "./warp";
 import type { ChainId } from "./chains";
@@ -16,7 +16,7 @@ export async function sendWarpTransfer(opts: {
   onStatus: (status: "signing" | "submitted" | "confirming", signature?: string) => void;
 }): Promise<{ signature: string }> {
   const { wallet, config, origin } = opts;
-  if (!wallet.publicKey || !wallet.sendTransaction) {
+  if (!wallet.publicKey || !wallet.signTransaction) {
     throw new Error("Connect a Solana-compatible wallet first.");
   }
 
@@ -75,14 +75,9 @@ async function sendWithFreshBlockhash(
   wallet: WalletContextState,
   connection: ReturnType<typeof connectionFor>,
 ) {
-  if (!wallet.publicKey || !wallet.sendTransaction) {
+  if (!wallet.publicKey || !wallet.signTransaction) {
     throw new Error("Connect a Solana-compatible wallet first.");
   }
-
-  const blockhash = await connection.getLatestBlockhash("confirmed");
-  transaction.feePayer = wallet.publicKey;
-  transaction.recentBlockhash = blockhash.blockhash;
-  transaction.lastValidBlockHeight = blockhash.lastValidBlockHeight;
 
   const presigned = transaction.signatures.filter((sig) => sig.signature);
   const covered = presigned.every((sig) =>
@@ -91,16 +86,39 @@ async function sendWithFreshBlockhash(
   if (!covered) {
     throw new Error("Could not attach a fresh blockhash. The message signer was lost.");
   }
-  if (signers.length) transaction.partialSign(...signers);
 
-  const signature = await wallet.sendTransaction(transaction, connection, {
+  const latest = await connection.getLatestBlockhash("confirmed");
+  // Rebuild instead of mutating the SDK transaction. That object is already
+  // partially signed against an older blockhash, and web3.js only keeps the
+  // hash when it is passed as `blockhash` alongside lastValidBlockHeight.
+  const toSign = new Transaction({
+    feePayer: wallet.publicKey,
+    blockhash: latest.blockhash,
+    lastValidBlockHeight: latest.lastValidBlockHeight,
+  }).add(...transaction.instructions);
+  toSign.recentBlockhash = latest.blockhash;
+  if (signers.length) toSign.partialSign(...signers);
+  if (toSign.compileMessage().recentBlockhash !== latest.blockhash) {
+    throw new Error("Could not attach a fresh blockhash.");
+  }
+
+  // Backpack's sendTransaction uses signAndSendTransaction and broadcasts on
+  // the wallet RPC for the wallet-standard chain. A proxied RPC is classified
+  // as mainnet or localnet, so that node reports "blockhash not found".
+  const signed = await wallet.signTransaction(toSign);
+  if (!signed.recentBlockhash) {
+    signed.recentBlockhash = latest.blockhash;
+    signed.lastValidBlockHeight = latest.lastValidBlockHeight;
+  }
+
+  const signature = await connection.sendRawTransaction(signed.serialize(), {
     skipPreflight: false,
     preflightCommitment: "confirmed",
     maxRetries: 3,
   });
   return {
     signature,
-    blockhash: blockhash.blockhash,
-    lastValidBlockHeight: blockhash.lastValidBlockHeight,
+    blockhash: latest.blockhash,
+    lastValidBlockHeight: latest.lastValidBlockHeight,
   };
 }
