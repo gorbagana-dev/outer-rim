@@ -88,9 +88,9 @@
   --gradient-void: linear-gradient(180deg, #2a1749 0%, #0d0619 100%);
   --grid-line: rgba(154, 77, 255, 0.45);
 
-  --font-display: var(--font-permanent-marker), "Permanent Marker", "Marker Felt", cursive;
-  --font-body: var(--font-space-grotesk), "Space Grotesk", "Helvetica Neue", sans-serif;
-  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Permanent Marker", "Marker Felt", cursive;
+  --font-body: "Space Grotesk", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --text-2xs: 10px;
   --text-xs: 11px;
@@ -185,6 +185,9 @@ body {
   margin: 0;
   background: var(--bg-app);
   color: var(--text-primary);
+  --font-display: var(--font-permanent-marker), "Permanent Marker", "Marker Felt", cursive;
+  --font-body: var(--font-space-grotesk), "Space Grotesk", "Helvetica Neue", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, monospace;
   font: var(--type-body);
   -webkit-font-smoothing: antialiased;
 }
@@ -192,6 +195,18 @@ body {
 ::selection {
   background: var(--pink-500);
   color: var(--white);
+}
+
+.title-neon {
+  font-family: var(--font-permanent-marker), "Permanent Marker", "Marker Felt", cursive;
+  font-weight: 400;
+  color: #c8ff6a;
+  text-shadow:
+    0 0 1px #f6ffe8,
+    0 0 6px rgba(182, 255, 74, 0.95),
+    0 0 14px rgba(57, 255, 20, 0.9),
+    0 0 28px rgba(57, 255, 20, 0.55),
+    0 0 48px rgba(57, 255, 20, 0.28);
 }
 
 a {

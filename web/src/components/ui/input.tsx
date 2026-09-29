@@ -40,9 +40,7 @@ export function Input({
         className={cn(
           "flex items-center gap-2 px-3 rounded-sm bg-[var(--void-0)] border-2",
           h,
-          error
-            ? "border-[var(--status-danger)]"
-            : "border-[var(--border-default)] focus-within:border-cyan-500 focus-within:shadow-cyan",
+          error ? "border-[var(--status-danger)]" : "border-[var(--border-default)]",
           "shadow-[var(--shadow-inset-bin)]",
           "motion-safe:transition-[border-color,box-shadow] motion-safe:duration-fast",
         )}
@@ -54,7 +52,7 @@ export function Input({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : hintId}
           className={cn(
-            "min-w-0 flex-1 bg-transparent border-0 outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)]",
+            "min-w-0 flex-1 bg-transparent border-0 outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:outline-none focus-visible:shadow-none",
             mono ? "font-mono text-sm tabular" : "font-body text-[15px]",
           )}
           {...rest}

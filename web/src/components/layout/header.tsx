@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { WalletButton } from "@/components/wallet/wallet-button";
 import { Wordmark } from "./wordmark";
-import { History, Recycle } from "lucide-react";
+import { History } from "lucide-react";
 
 export function Header({
   onHistory,
@@ -54,10 +54,6 @@ export function Header({
         >
           <History size={18} aria-hidden />
         </IconButton>
-        <span className="hidden sm:inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          <Recycle size={14} aria-hidden />
-          $GOR
-        </span>
         <WalletButton />
       </div>
     </header>

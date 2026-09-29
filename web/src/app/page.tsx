@@ -5,8 +5,8 @@ export default function Page() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[var(--bg-app)] flex items-center justify-center text-[var(--text-muted)]">
-          Loading the landfill…
+        <div className="flex min-h-screen items-center justify-center bg-[var(--bg-app)] text-[var(--text-muted)]">
+          Opening the chute…
         </div>
       }
     >
