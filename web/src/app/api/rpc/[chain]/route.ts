@@ -13,6 +13,7 @@ const ALLOWED = new Set([
   "getTokenAccountBalance",
   "getTokenAccountsByOwner",
   "getSignatureStatuses",
+  "getSignaturesForAddress",
   "getTransaction",
   "getRecentPrioritizationFees",
   "simulateTransaction",

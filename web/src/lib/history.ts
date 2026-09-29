@@ -21,7 +21,8 @@ export function saveHistory(items: HistoryItem[]) {
 
 export function upsertHistory(item: HistoryItem) {
   const items = loadHistory();
-  const next = [item, ...items.filter((i) => i.id !== item.id)];
+  const index = items.findIndex((entry) => entry.id === item.id);
+  const next = index === -1 ? [item, ...items] : items.map((entry) => (entry.id === item.id ? item : entry));
   saveHistory(next);
   return next;
 }
