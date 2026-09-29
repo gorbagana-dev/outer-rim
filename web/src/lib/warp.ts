@@ -16,6 +16,11 @@ type WarpHandle = {
     sender: string;
     recipient: string;
   }) => Promise<BuiltTx[]>;
+  quoteInterchainFee: (args: {
+    origin: ChainId;
+    destination: ChainId;
+    sender: string;
+  }) => Promise<bigint>;
 };
 
 let cached: Promise<WarpHandle> | null = null;
@@ -151,6 +156,19 @@ async function assembleWarp(config: PublicBridgeConfig): Promise<WarpHandle> {
         );
         return { transaction, signers };
       });
+    },
+
+    async quoteInterchainFee({ origin, destination, sender }) {
+      const tokens = warpCore.getTokensForRoute(origin, destination);
+      if (!tokens.length) {
+        throw new Error(`No warp route from ${origin} to ${destination}.`);
+      }
+      const fee = await warpCore.getInterchainTransferFee({
+        originToken: tokens[0],
+        destination,
+        sender,
+      });
+      return BigInt(fee.amount.toString());
     },
   };
 }

@@ -10,8 +10,12 @@ export function humanError(error: unknown): string {
   if (/user rejected|rejected the request|cancelled|canceled/i.test(message)) {
     return "WALLET_REJECTED";
   }
-  if (/insufficient|0x1$/i.test(message)) {
-    return "Not enough $GOR to cover the amount plus the origin fee.";
+  if (/^Not enough /.test(message)) return message.slice(0, 280);
+  if (/insufficient lamports/i.test(message)) {
+    return "Not enough native token for the network fee.";
+  }
+  if (/insufficient funds/i.test(message)) {
+    return "Not enough $GOR in this wallet for that amount.";
   }
   if (/blockhash not found/i.test(message)) {
     return "The network dropped the blockhash. Retry the transfer.";

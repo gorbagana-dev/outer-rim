@@ -38,6 +38,20 @@ export async function fetchGorBalance(
   }
 }
 
+export async function fetchTokenAccountBalance(
+  account: string,
+  config: PublicBridgeConfig,
+): Promise<{ human: string; raw: bigint } | null> {
+  const connection = connectionFor("solana", config);
+  try {
+    const result = await connection.getTokenAccountBalance(new PublicKey(account));
+    const raw = BigInt(result.value.amount);
+    return { raw, human: baseUnitsToHuman(raw, result.value.decimals) };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchNativeBalance(chain: ChainId, owner: string, config: PublicBridgeConfig) {
   const connection = connectionFor(chain, config);
   try {
