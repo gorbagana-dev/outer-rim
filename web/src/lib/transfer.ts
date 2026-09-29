@@ -1,6 +1,8 @@
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 import { Transaction, type Keypair } from "@solana/web3.js";
 import { connectionFor } from "./balances";
+import { confirmLanded } from "./confirm";
+import { assertSimulation } from "./fee";
 import { getWarp } from "./warp";
 import type { ChainId } from "./chains";
 import type { PublicBridgeConfig } from "./types";
@@ -44,18 +46,11 @@ export async function sendWarpTransfer(opts: {
   try {
     for (const { transaction, signers } of txs) {
       opts.onStatus("signing");
-      const sent = await sendWithFreshBlockhash(transaction, signers, wallet, connection);
+      const sent = await sendWithFreshBlockhash(transaction, signers, wallet, connection, origin);
       signature = sent.signature;
       opts.onStatus("submitted", signature);
       opts.onStatus("confirming", signature);
-      await connection.confirmTransaction(
-        {
-          signature,
-          blockhash: sent.blockhash,
-          lastValidBlockHeight: sent.lastValidBlockHeight,
-        },
-        "confirmed",
-      );
+      await confirmLanded(connection, signature);
     }
   } catch (error) {
     const msg = humanError(error);
@@ -74,6 +69,7 @@ async function sendWithFreshBlockhash(
   signers: Keypair[],
   wallet: WalletContextState,
   connection: ReturnType<typeof connectionFor>,
+  origin: ChainId,
 ) {
   if (!wallet.publicKey || !wallet.signTransaction) {
     throw new Error("Connect a Solana-compatible wallet first.");
@@ -101,6 +97,8 @@ async function sendWithFreshBlockhash(
   if (toSign.compileMessage().recentBlockhash !== latest.blockhash) {
     throw new Error("Could not attach a fresh blockhash.");
   }
+
+  await assertSimulation(connection, toSign, origin);
 
   // Backpack's sendTransaction uses signAndSendTransaction and broadcasts on
   // the wallet RPC for the wallet-standard chain. A proxied RPC is classified
