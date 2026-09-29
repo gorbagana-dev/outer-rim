@@ -59,7 +59,7 @@ export function explorerTxUrl(chain: ChainId, signature: string, base?: string) 
     const root = base ?? process.env.NEXT_PUBLIC_SOLANA_EXPLORER ?? "https://solscan.io";
     return `${root.replace(/\/$/, "")}/tx/${signature}`;
   }
-  const root = base ?? process.env.NEXT_PUBLIC_GORCHAIN_EXPLORER ?? "https://scan.gorbagana.wtf";
+  const root = base ?? process.env.NEXT_PUBLIC_GORCHAIN_EXPLORER ?? "https://explorer.gorbagana.wtf";
   return `${root.replace(/\/$/, "")}/tx/${signature}`;
 }
 
@@ -68,6 +68,6 @@ export function explorerAddressUrl(chain: ChainId, address: string, base?: strin
     const root = base ?? process.env.NEXT_PUBLIC_SOLANA_EXPLORER ?? "https://solscan.io";
     return `${root.replace(/\/$/, "")}/account/${address}`;
   }
-  const root = base ?? process.env.NEXT_PUBLIC_GORCHAIN_EXPLORER ?? "https://scan.gorbagana.wtf";
-  return `${root.replace(/\/$/, "")}/account/${address}`;
+  const root = base ?? process.env.NEXT_PUBLIC_GORCHAIN_EXPLORER ?? "https://explorer.gorbagana.wtf";
+  return `${root.replace(/\/$/, "")}/address/${address}`;
 }

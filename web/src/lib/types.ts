@@ -49,7 +49,7 @@ export function emptyConfig(): PublicBridgeConfig {
     solanaWarp: "",
     gorMint: GOR_MINT,
     explorerUrl: "",
-    gorchainExplorer: "https://scan.gorbagana.wtf",
+    gorchainExplorer: "https://explorer.gorbagana.wtf",
     solanaExplorer: "https://solscan.io",
     routeReady: false,
   };
