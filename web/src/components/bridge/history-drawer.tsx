@@ -16,7 +16,7 @@ const STATUS_LABEL: Record<HistoryItem["status"], string> = {
   signing: "Signing",
   submitted: "Submitted",
   confirming: "Confirming",
-  "waiting-relayer": "Waiting on relayer",
+  "waiting-relayer": "Delivered",
   delivered: "Delivered",
   failed: "Failed",
 };
@@ -56,9 +56,9 @@ export function HistoryDrawer({
         <div className="flex items-center justify-between px-5 h-16 border-b border-[var(--border-subtle)]">
           <div>
             <p className="m-0 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-pink-500">
-              Dumpster log
+              The chute
             </p>
-            <h2 className="m-0 font-display text-xl text-acid-500 uppercase">History</h2>
+            <h2 className="m-0 font-display text-xl text-acid-500 uppercase">Trips</h2>
           </div>
           <IconButton label="Close" onClick={onClose}>
             <X size={18} aria-hidden />
@@ -68,9 +68,9 @@ export function HistoryDrawer({
           {items.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               <Recycle size={28} className="text-[var(--text-muted)]" aria-hidden />
-              <p className="m-0 font-bold">No transfers yet</p>
+              <p className="m-0 font-bold">No trips yet</p>
               <p className="m-0 text-sm text-[var(--text-muted)]">
-                Once you dump $GOR over the rim, it shows up here.
+                A transfer through the chute shows up here.
               </p>
             </div>
           )}
@@ -89,14 +89,12 @@ export function HistoryDrawer({
                   </span>
                   <Badge
                     tone={
-                      item.status === "delivered"
+                      item.status === "delivered" || item.status === "waiting-relayer"
                         ? "acid"
                         : item.status === "failed"
                           ? "danger"
                           : "cyan"
                     }
-                    dot={item.status === "waiting-relayer"}
-                    pulse={item.status === "waiting-relayer"}
                   >
                     {STATUS_LABEL[item.status]}
                   </Badge>
@@ -108,20 +106,39 @@ export function HistoryDrawer({
                 <p className="m-0 mt-1 font-mono text-xs text-cyan-500">
                   to {truncateAddress(item.recipient)}
                 </p>
-                {item.originTx && (
-                  <a
-                    href={explorerTxUrl(
-                      item.origin,
-                      item.originTx,
-                      item.origin === "solana" ? config.solanaExplorer : config.gorchainExplorer,
-                    )}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 mt-2 text-xs"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Origin tx <ExternalLink size={12} aria-hidden />
-                  </a>
+                {(item.originTx || item.destinationTx) && (
+                <span className="mt-2 flex flex-wrap gap-3">
+                  {item.originTx && (
+                    <a
+                      href={explorerTxUrl(
+                        item.origin,
+                        item.originTx,
+                        item.origin === "solana" ? config.solanaExplorer : config.gorchainExplorer,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {CHAINS[item.origin].shortName} tx <ExternalLink size={12} aria-hidden />
+                    </a>
+                  )}
+                  {item.destinationTx && (
+                    <a
+                      href={explorerTxUrl(
+                        item.destination,
+                        item.destinationTx,
+                        item.destination === "solana" ? config.solanaExplorer : config.gorchainExplorer,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {CHAINS[item.destination].shortName} tx <ExternalLink size={12} aria-hidden />
+                    </a>
+                  )}
+                </span>
                 )}
               </button>
             );

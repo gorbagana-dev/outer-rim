@@ -8,27 +8,40 @@ import { WalletModal } from "@/components/wallet/wallet-modal";
 import { ReviewDialog } from "./review-dialog";
 import { StatusPanel } from "./status-panel";
 import { CHAINS, GOR_DECIMALS, OTHER_CHAIN, type ChainId } from "@/lib/chains";
-import { formatTokenAmount, parseHumanAmount } from "@/lib/format";
-import { isValidPubkey, truncateAddress } from "@/lib/address";
+import { GORCHAIN_TX_FEE_HUMAN } from "@/lib/deployed";
+import { quoteOriginFee, type OriginFee } from "@/lib/fee";
+import { baseUnitsToHuman, formatTokenAmount, humanToBaseUnits, parseHumanAmount } from "@/lib/format";
+import { isValidPubkey } from "@/lib/address";
+import { findDestinationTx } from "@/lib/delivery";
 import { sendWarpTransfer } from "@/lib/transfer";
 import { humanError, WALLET_REJECTED } from "@/lib/errors";
 import type { HistoryItem } from "@/lib/types";
-import { useBalances } from "@/hooks/use-balances";
+import { portionHuman, useBalances } from "@/hooks/use-balances";
 import { useBridgeConfig } from "@/providers/config-provider";
 import { useToasts } from "@/providers/toast-provider";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { ArrowDownUp, Recycle, Wallet } from "lucide-react";
+import { ChevronsDown, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 function parseChain(value: string | null): ChainId {
   return value === "solana" ? "solana" : "gorchain";
 }
 
+const SHARES = [
+  { label: "25%", bps: 2_500 },
+  { label: "50%", bps: 5_000 },
+  { label: "Max", bps: 10_000 },
+] as const;
+
 export function BridgeCard({
   onHistoryItem,
+  items = [],
+  focusId = null,
 }: {
   onHistoryItem: (item: HistoryItem) => void;
+  items?: HistoryItem[];
+  focusId?: string | null;
 }) {
   const config = useBridgeConfig();
   const params = useSearchParams();
@@ -49,14 +62,62 @@ export function BridgeCard({
   const [active, setActive] = useState<HistoryItem | null>(null);
   const [amountError, setAmountError] = useState<string | undefined>();
   const [recipientError, setRecipientError] = useState<string | undefined>();
+  const [flip, setFlip] = useState(0);
+  const [originFee, setOriginFee] = useState<OriginFee | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
 
   const balances = useBalances(origin, config);
 
   useEffect(() => {
-    if (publicKey && !recipientTouched) {
-      setRecipient(publicKey.toBase58());
+    if (!publicKey || !config.routeReady) {
+      setOriginFee(null);
+      setFeeLoading(false);
+      return;
     }
-  }, [publicKey, recipientTouched]);
+    let alive = true;
+    setFeeLoading(true);
+    quoteOriginFee({
+      config,
+      origin,
+      destination,
+      sender: publicKey.toBase58(),
+    })
+      .then((fee) => {
+        if (alive) setOriginFee(fee);
+      })
+      .catch(() => {
+        if (alive) setOriginFee(null);
+      })
+      .finally(() => {
+        if (alive) setFeeLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [publicKey, origin, destination, config]);
+  const lastFocus = useRef<string | null>(null);
+  const fillOnConnect = useRef(false);
+
+  function fillRecipient(address: string) {
+    setRecipient(address);
+    setRecipientTouched(true);
+    setRecipientError(undefined);
+  }
+
+  function fillFromWallet() {
+    if (!publicKey) {
+      fillOnConnect.current = true;
+      setWalletOpen(true);
+      return;
+    }
+    fillRecipient(publicKey.toBase58());
+  }
+
+  useEffect(() => {
+    if (!publicKey || !fillOnConnect.current) return;
+    fillOnConnect.current = false;
+    fillRecipient(publicKey.toBase58());
+  }, [publicKey]);
 
   useEffect(() => {
     const next = new URLSearchParams(params.toString());
@@ -68,34 +129,73 @@ export function BridgeCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [origin, destination, amount]);
 
+  useEffect(() => {
+    if (!focusId || focusId === lastFocus.current) return;
+    lastFocus.current = focusId;
+    const found = items.find((item) => item.id === focusId);
+    if (!found) return;
+    setActive(found);
+    setReview(false);
+    document.getElementById("bridge-terminal")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusId, items]);
+
+  useEffect(() => {
+    setActive((current) => {
+      if (!current) return current;
+      const newer = items.find((item) => item.id === current.id);
+      if (!newer || newer.updatedAt < current.updatedAt) return current;
+      if (
+        newer.status === current.status &&
+        newer.originTx === current.originTx &&
+        newer.destinationTx === current.destinationTx &&
+        newer.error === current.error
+      ) {
+        return current;
+      }
+      return newer;
+    });
+  }, [items]);
+
   const parsed = parseHumanAmount(amount);
   const originDecimals = GOR_DECIMALS[origin];
   const receive = parsed
-    ? formatTokenAmount(parsed, { context: "detailed", tokenDecimals: originDecimals })
+    ? formatTokenAmount(parsed, { context: "detailed", tokenDecimals: GOR_DECIMALS[destination] })
     : null;
 
-  function validate() {
+  function validate(requireRecipient: boolean) {
     let ok = true;
     if (!parsed || Number(parsed) <= 0) {
       setAmountError("Enter an amount greater than 0.");
       ok = false;
     } else if (balances.gor && Number(parsed) > Number(balances.gor.human)) {
-      setAmountError("Amount is above your $GOR balance.");
+      setAmountError("That is more $GOR than this wallet holds.");
       ok = false;
     } else {
       setAmountError(undefined);
     }
-    if (!isValidPubkey(recipient)) {
-      setRecipientError("That is not a valid Solana / Gorchain address.");
-      ok = false;
-    } else {
-      setRecipientError(undefined);
+    if (requireRecipient) {
+      if (!isValidPubkey(recipient)) {
+        setRecipientError("That is not a valid address.");
+        ok = false;
+      } else {
+        setRecipientError(undefined);
+      }
     }
     return ok;
   }
 
   function swap() {
+    setFlip((n) => n + 180);
     setOrigin(destination);
+    setAmountError(undefined);
+  }
+
+  function onAmountChange(raw: string) {
+    const cleaned = raw.replace(/[^\d.]/g, "");
+    const [whole = "", ...rest] = cleaned.split(".");
+    const frac = rest.join("").slice(0, originDecimals);
+    const next = cleaned.includes(".") ? `${whole}.${frac}` : whole;
+    setAmount(next);
     setAmountError(undefined);
   }
 
@@ -114,6 +214,7 @@ export function BridgeCard({
     };
     setActive(item);
     onHistoryItem(item);
+    let originTx: string | undefined;
     try {
       const { signature } = await sendWarpTransfer({
         config,
@@ -123,24 +224,37 @@ export function BridgeCard({
         recipient,
         wallet,
         onStatus: (status, sig) => {
-          const next = { ...item, status, originTx: sig ?? item.originTx, updatedAt: Date.now() };
+          if (sig) originTx = sig;
+          const next = { ...item, status, originTx, updatedAt: Date.now() };
           setActive(next);
           onHistoryItem(next);
         },
       });
-      const waiting: HistoryItem = {
+      const landed: HistoryItem = {
         ...item,
         originTx: signature,
-        status: "waiting-relayer",
+        status: "delivered",
         updatedAt: Date.now(),
       };
-      setActive(waiting);
-      onHistoryItem(waiting);
+      setActive(landed);
+      onHistoryItem(landed);
       setReview(false);
       push({
         tone: "success",
-        title: "Locked on origin",
-        description: "Waiting on the relayer to dump it on the far lid.",
+        title: "Landed",
+        description: `$GOR is on ${CHAINS[destination].shortName}.`,
+      });
+      void findDestinationTx({
+        config,
+        origin,
+        destination,
+        originTx: signature,
+        poll: true,
+      }).then((destinationTx) => {
+        if (!destinationTx) return;
+        const next = { ...landed, destinationTx, updatedAt: Date.now() };
+        setActive((current) => (current?.id === landed.id ? next : current));
+        onHistoryItem(next);
       });
     } catch (error) {
       const msg = humanError(error);
@@ -151,12 +265,14 @@ export function BridgeCard({
       }
       const failed: HistoryItem = {
         ...item,
+        originTx,
         status: "failed",
         error: msg,
         updatedAt: Date.now(),
       };
       setActive(failed);
       onHistoryItem(failed);
+      setReview(false);
       push({ tone: "danger", title: "Transfer failed", description: msg });
     }
   }
@@ -167,167 +283,248 @@ export function BridgeCard({
       ? formatTokenAmount(balances.gor.human, { context: "compact", tokenDecimals: originDecimals })
       : null;
 
+  const feeShort = originFeeShort(origin, originFee, balances.native, balances.gor?.raw ?? null, parsed);
   const submitDisabled = Boolean(amountError || recipientError) && (amount.length > 0 || recipientTouched);
-  const ctaBusy = Boolean(
-    active && ["signing", "submitted", "confirming"].includes(active.status),
+  const ctaBusy = Boolean(active && ["signing", "submitted", "confirming"].includes(active.status));
+  const showChute = Boolean(
+    active && !review && !["idle", "review"].includes(active.status),
   );
+  const canFill = Boolean(balances.gor && balances.gor.raw > 0n);
 
-  const routeHint = useMemo(() => {
-    if (!config.routeReady) {
-      return "Warp programs are not configured yet. The form still works; sending waits on deploy.";
-    }
-    return origin === "gorchain"
-      ? "Locks native $GOR on Gorchain. Unlocks SPL $GOR from the Solana escrow."
-      : "Locks SPL $GOR on Solana. Unlocks native $GOR from the Gorchain collateral PDA.";
-  }, [config.routeReady, origin]);
+  const accent = !showChute || !active ? "acid" : active.status === "failed" ? "pink" : "cyan";
 
   return (
     <>
-      <Card variant="neon" accent="acid" padding="p-0" className="relative">
-        <form
-          className="p-5 md:p-6 flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!validate()) {
-              const first = document.getElementById(amountError ? amountId : recipientId) as
-                | HTMLInputElement
-                | null;
-              first?.focus();
-              return;
-            }
-            if (!connected) {
-              setWalletOpen(true);
-              return;
-            }
-            setReview(true);
-          }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="m-0 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-pink-500">
-                Hyperlane warp
-              </p>
-              <h2 className="m-0 font-display text-[28px] uppercase leading-none text-[var(--text-primary)]">
-                Bridge $GOR
-              </h2>
+      <Card id="bridge-terminal" variant="neon" accent={accent} padding="p-0" className="relative h-full">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-2.5">
+          <div>
+            <p className="m-0 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-pink-500">
+              The chute
+            </p>
+            <h2 className="title-neon m-0 font-display text-[26px] uppercase leading-none tracking-[0.01em]">
+              Bridge $GOR
+            </h2>
+          </div>
+          <Tag variant="sticker" tilt={-2}>
+            1:1
+          </Tag>
+        </div>
+
+        {showChute && active ? (
+          <div className="flex min-h-0 flex-1 flex-col p-4 md:p-5">
+            <StatusPanel item={active} onNew={() => setActive(null)} />
+          </div>
+        ) : (
+          <form
+            className="flex min-h-0 flex-1 flex-col gap-2.5 p-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!config.routeReady) return;
+              if (!connected) {
+                if (!validate(false)) {
+                  document.getElementById(amountId)?.focus();
+                  return;
+                }
+                setWalletOpen(true);
+                return;
+              }
+              if (!validate(true) || feeShort) {
+                const first = document.getElementById(amountError ? amountId : recipientId) as
+                  | HTMLInputElement
+                  | null;
+                first?.focus();
+                return;
+              }
+              setReview(true);
+            }}
+          >
+            <div className="relative flex flex-col">
+              <Bin label="From" chain={origin} edge="from" active>
+                <label className="sr-only" htmlFor={amountId}>
+                  Amount
+                </label>
+                <div className="flex items-baseline gap-2">
+                  <input
+                    id={amountId}
+                    name="amount"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="0.00"
+                    value={amount}
+                    aria-invalid={amountError ? true : undefined}
+                    aria-describedby={amountError ? `${amountId}-error` : undefined}
+                    onChange={(e) => onAmountChange(e.target.value)}
+                    onBlur={() => {
+                      if (amount) validate(false);
+                    }}
+                    className="min-w-0 flex-1 border-0 bg-transparent font-mono text-[28px] leading-none tabular text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                  />
+                  <span className="shrink-0 font-display text-lg text-pink-500 [text-shadow:var(--text-glow-pink)]">
+                    $GOR
+                  </span>
+                </div>
+                {amountError && (
+                  <p id={`${amountId}-error`} className="m-0 mt-2 text-xs text-[var(--status-danger)]">
+                    {amountError}
+                  </p>
+                )}
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <p className="m-0 min-w-0 truncate text-xs text-[var(--text-muted)]">
+                    {balances.loading && <span className="skeleton inline-block h-3 w-24 rounded-xs align-middle" />}
+                    {!balances.loading && !connected && "Connect to read a balance"}
+                    {!balances.loading && connected && balanceText && (
+                      <>
+                        Balance{" "}
+                        <span className="font-mono tabular text-[var(--text-secondary)]" aria-label={balanceText.aria}>
+                          {balanceText.text}
+                        </span>
+                      </>
+                    )}
+                    {!balances.loading && connected && balances.error && (
+                      <button type="button" onClick={balances.refresh} className="text-[var(--status-danger)]">
+                        Retry balance
+                      </button>
+                    )}
+                  </p>
+                  <div className="flex shrink-0 gap-1">
+                    {SHARES.map((share) => (
+                      <button
+                        key={share.label}
+                        type="button"
+                        disabled={!canFill}
+                        onClick={() => {
+                          if (!balances.gor) return;
+                          setAmount(portionHuman(balances.gor.raw, origin, share.bps));
+                          setAmountError(undefined);
+                        }}
+                        title={
+                          share.bps === 10_000 && origin === "gorchain"
+                            ? `Leaves ${GORCHAIN_TX_FEE_HUMAN} $GOR for the network fee`
+                            : undefined
+                        }
+                        className="h-6 rounded-xs border border-[var(--border-default)] px-2 font-body text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)] motion-safe:transition-[border-color,color,transform] motion-safe:duration-fast hover:border-acid-500 hover:text-acid-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {share.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </Bin>
+
+              <div className="relative z-10 -my-4 flex justify-center">
+                <button
+                  type="button"
+                  aria-label="Flip direction"
+                  onClick={swap}
+                  className="grid h-10 w-10 place-items-center rounded-full border-2 border-acid-500 bg-[var(--surface-1)] text-acid-500 shadow-acid motion-safe:transition-[box-shadow,transform] motion-safe:duration-fast hover:shadow-acid-strong active:scale-95"
+                >
+                  <ChevronsDown
+                    size={18}
+                    aria-hidden
+                    className="motion-safe:transition-transform motion-safe:duration-slow motion-safe:ease-snap"
+                    style={{ transform: `rotate(${flip}deg)` }}
+                  />
+                </button>
+              </div>
+
+              <Bin label="To" chain={destination} edge="to">
+                <p className="m-0 flex items-baseline gap-2">
+                  <span
+                    className={`min-w-0 flex-1 font-mono text-[28px] leading-none tabular ${receive ? "text-acid-500 [text-shadow:var(--text-glow-acid)]" : "text-[var(--text-muted)]"}`}
+                    aria-label={receive ? receive.aria : "Enter an amount"}
+                  >
+                    {receive ? receive.text : "0.00"}
+                  </span>
+                  <span className="shrink-0 font-display text-lg text-pink-500 [text-shadow:var(--text-glow-pink)]">
+                    $GOR
+                  </span>
+                </p>
+              </Bin>
             </div>
-            <Tag variant="sticker" tilt={-3}>
-              1:1
-            </Tag>
-          </div>
 
-          <ChainRow
-            label="From"
-            chain={origin}
-            balance={balanceText}
-            loading={balances.loading}
-            error={balances.error}
-            onRetry={balances.refresh}
-          />
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                className="shrink-0 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-500"
+                onClick={fillFromWallet}
+              >
+                Use my wallet
+              </button>
+            </div>
 
-          <Input
-            id={amountId}
-            name="amount"
-            label="Amount"
-            hint="Same $GOR on the far side."
-            error={amountError}
-            placeholder="0.00"
-            inputMode="decimal"
-            autoComplete="off"
-            spellCheck={false}
-            mono
-            inputSize="lg"
-            suffix="$GOR"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value);
-              setAmountError(undefined);
-            }}
-            onBlur={() => {
-              if (amount) validate();
-            }}
-          />
-          <div className="flex justify-end -mt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={!balances.gor || balances.gor.human === "0"}
-              onClick={() => {
-                setAmount(balances.maxHuman);
-                setAmountError(undefined);
+            <Input
+              id={recipientId}
+              name="recipient"
+              label="Recipient"
+              error={recipientError}
+              placeholder="Gorchain or Solana address"
+              autoComplete="off"
+              spellCheck={false}
+              mono
+              value={recipient}
+              onChange={(e) => {
+                setRecipientTouched(true);
+                setRecipient(e.target.value.trim());
+                setRecipientError(undefined);
               }}
-            >
-              Max
-            </Button>
-          </div>
+              onBlur={() => {
+                setRecipientTouched(true);
+                if (recipient) validate(true);
+              }}
+            />
 
-          <div className="flex justify-center -my-1">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              aria-label="Swap origin and destination"
-              onClick={swap}
-              iconLeft={<ArrowDownUp size={16} aria-hidden />}
-            >
-              Swap
-            </Button>
-          </div>
+            <div className="mt-auto flex flex-col gap-2.5">
+            <p className="m-0 flex items-baseline justify-between gap-3">
+              <span className="font-body text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                Fee
+              </span>
+              <span className="font-mono text-sm tabular text-[var(--text-primary)]">
+                {feeLoading && <span className="skeleton inline-block h-3 w-16 rounded-xs align-middle" />}
+                {!feeLoading && originFee && (
+                  <>
+                    {originFee.text}{" "}
+                    <span
+                      className={
+                        originFee.symbol === "SOL"
+                          ? "font-display text-cyan-500"
+                          : "font-display text-pink-500 [text-shadow:var(--text-glow-pink)]"
+                      }
+                    >
+                      {originFee.symbol}
+                    </span>
+                  </>
+                )}
+                {!feeLoading && !originFee && <span className="text-[var(--text-muted)]">—</span>}
+              </span>
+            </p>
+            {feeShort && (
+              <p className="m-0 text-xs text-[var(--status-danger)]">{feeShort}</p>
+            )}
 
-          <ChainRow label="To" chain={destination} receive={receive} />
-
-          <Input
-            id={recipientId}
-            name="recipient"
-            label="Recipient"
-            hint="Defaults to your connected wallet. Same pubkey on both SVM chains."
-            error={recipientError}
-            placeholder="Gorchain / Solana address"
-            autoComplete="off"
-            spellCheck={false}
-            mono
-            value={recipient}
-            onChange={(e) => {
-              setRecipientTouched(true);
-              setRecipient(e.target.value);
-              setRecipientError(undefined);
-            }}
-            onBlur={() => {
-              setRecipientTouched(true);
-              if (recipient) validate();
-            }}
-          />
-
-          <p className="m-0 text-sm text-[var(--text-muted)]">{routeHint}</p>
-
-          {!connected ? (
-            <Button
-              type="button"
-              size="lg"
-              fullWidth
-              loading={connecting}
-              iconLeft={<Wallet size={18} aria-hidden />}
-              onClick={() => setWalletOpen(true)}
-            >
-              Connect wallet
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="lg"
-              fullWidth
-              disabled={submitDisabled || ctaBusy}
-              loading={ctaBusy}
-              iconLeft={<Recycle size={18} aria-hidden />}
-            >
-              {config.routeReady ? "Bridge $GOR" : "Route not deployed"}
-            </Button>
-          )}
-        </form>
+            {!config.routeReady ? (
+              <Button type="submit" size="md" fullWidth disabled>
+                Route not deployed
+              </Button>
+            ) : !connected ? (
+              <Button
+                type="submit"
+                size="md"
+                fullWidth
+                loading={connecting}
+                iconLeft={<Wallet size={18} aria-hidden />}
+              >
+                Connect wallet
+              </Button>
+            ) : (
+              <Button type="submit" size="md" fullWidth disabled={submitDisabled || ctaBusy || Boolean(feeShort)} loading={ctaBusy}>
+                Send through
+              </Button>
+            )}
+            </div>
+          </form>
+        )}
       </Card>
-
-      <StatusPanel item={active} onDismiss={() => setActive(null)} />
 
       <ReviewDialog
         open={review}
@@ -338,6 +535,8 @@ export function BridgeCard({
         amount={parsed ?? amount}
         recipient={recipient}
         sender={publicKey?.toBase58() ?? ""}
+        feeText={originFee?.text}
+        feeSymbol={originFee?.symbol}
         busy={ctaBusy}
       />
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
@@ -345,51 +544,62 @@ export function BridgeCard({
   );
 }
 
-function ChainRow({
+function Bin({
   label,
   chain,
-  balance,
-  receive,
-  loading,
-  error,
-  onRetry,
+  edge,
+  active,
+  children,
 }: {
   label: string;
   chain: ChainId;
-  balance?: { text: string; aria: string } | null;
-  receive?: { text: string; aria: string } | null;
-  loading?: boolean;
-  error?: string | null;
-  onRetry?: () => void;
+  edge: "from" | "to";
+  active?: boolean;
+  children: React.ReactNode;
 }) {
   const meta = CHAINS[chain];
+  const kind = chain === "gorchain" ? "Native · 9 dp" : "SPL · 6 dp";
   return (
-    <div className="flex items-center gap-3 rounded-md border border-[var(--border-default)] bg-[var(--void-0)] px-3 py-3">
-      <img src={meta.mark} alt="" width={40} height={40} className="rounded-sm shrink-0" />
-      <div className="min-w-0 flex-1">
+    <div
+      className={`rounded-md border bg-[var(--void-0)] px-3 shadow-[var(--shadow-inset-bin)] motion-safe:transition-[border-color,box-shadow] motion-safe:duration-fast ${
+        edge === "from" ? "pb-5 pt-2" : "pb-2 pt-5"
+      } ${
+        active
+          ? "border-[var(--border-default)] focus-within:border-cyan-500 focus-within:shadow-cyan"
+          : "border-[var(--border-default)]"
+      }`}
+    >
+      <div className="mb-1 flex items-center gap-2">
+        <img src={meta.mark} alt="" width={22} height={22} className="rounded-sm" />
         <p className="m-0 font-body text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           {label}
         </p>
-        <p className="m-0 font-bold text-[var(--text-primary)]">{meta.displayName}</p>
+        <p className="m-0 truncate font-bold leading-none text-[var(--text-primary)]">{meta.displayName}</p>
+        <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
+          {kind}
+        </span>
       </div>
-      <div className="text-right">
-        {loading && <div className="skeleton h-5 w-20 rounded-xs ml-auto" />}
-        {!loading && balance && (
-          <p className="m-0 font-mono text-sm tabular text-[var(--text-secondary)]">
-            <span aria-label={balance.aria}>{balance.text}</span> $GOR
-          </p>
-        )}
-        {!loading && error && (
-          <button type="button" onClick={onRetry} className="text-xs text-[var(--status-danger)]">
-            Retry balance
-          </button>
-        )}
-        {receive && (
-          <p className="m-0 font-mono text-sm tabular text-acid-500">
-            <span aria-label={receive.aria}>{receive.text}</span> $GOR
-          </p>
-        )}
-      </div>
+      {children}
     </div>
   );
+}
+
+function originFeeShort(
+  origin: ChainId,
+  fee: OriginFee | null,
+  native: bigint | null,
+  gorRaw: bigint | null,
+  amountHuman: string | null,
+) {
+  if (!fee) return null;
+  if (origin === "solana") {
+    if (native == null || native >= fee.required) return null;
+    const have = formatTokenAmount(baseUnitsToHuman(native, 9), { context: "detailed", tokenDecimals: 9 });
+    return `Need about ${fee.requiredText} SOL for the network fee. This wallet has ${have.text} SOL.`;
+  }
+  if (gorRaw == null || !amountHuman) return null;
+  const amountRaw = humanToBaseUnits(amountHuman, GOR_DECIMALS.gorchain);
+  if (gorRaw >= amountRaw + fee.required) return null;
+  const have = formatTokenAmount(baseUnitsToHuman(gorRaw, 9), { context: "detailed", tokenDecimals: 9 });
+  return `Need the amount plus about ${fee.requiredText} GOR for the network fee. This wallet has ${have.text} GOR.`;
 }

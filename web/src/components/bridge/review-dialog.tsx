@@ -5,7 +5,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { CHAINS, GOR_DECIMALS, explorerAddressUrl, type ChainId } from "@/lib/chains";
 import { formatTokenAmount } from "@/lib/format";
 import { truncateAddress } from "@/lib/address";
-import { Copy, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useBridgeConfig } from "@/providers/config-provider";
 
@@ -18,6 +18,8 @@ export function ReviewDialog({
   amount,
   recipient,
   sender,
+  feeText,
+  feeSymbol,
   busy,
 }: {
   open: boolean;
@@ -28,67 +30,77 @@ export function ReviewDialog({
   amount: string;
   recipient: string;
   sender: string;
+  feeText?: string;
+  feeSymbol?: "SOL" | "GOR";
   busy: boolean;
 }) {
   const config = useBridgeConfig();
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const shown = formatTokenAmount(amount, {
     context: "detailed",
     tokenDecimals: GOR_DECIMALS[origin],
   });
-  const mismatch = sender && recipient && sender !== recipient;
+  const mismatch = Boolean(sender && recipient && sender !== recipient);
+  const from = CHAINS[origin];
+  const to = CHAINS[destination];
 
   return (
     <Dialog
       open={open}
       onClose={busy ? () => undefined : onClose}
-      eyebrow="Customs inspection"
-      title="Dump this $GOR?"
+      eyebrow="Review"
+      title={busy ? "Signing" : "Send it through?"}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            Back
           </Button>
-          <Button onClick={onConfirm} loading={busy} iconRight={null}>
+          <Button onClick={onConfirm} loading={busy}>
             {busy ? "Signing" : "Sign and send"}
           </Button>
         </>
       }
     >
-      <dl className="m-0 grid gap-3 text-sm">
-        <Row label="From" value={CHAINS[origin].displayName} />
-        <Row label="To" value={CHAINS[destination].displayName} />
+      <p className="m-0 font-mono text-[40px] leading-none tabular text-acid-500 [text-shadow:var(--text-glow-acid)]">
+        <span aria-label={shown.aria}>{shown.text}</span>
+        <span className="ml-2 font-display text-[22px] text-pink-500 [text-shadow:var(--text-glow-pink)]">
+          $GOR
+        </span>
+      </p>
+      <p className="mt-2 mb-0 text-sm text-[var(--text-muted)]">1:1. You receive the same amount.</p>
+
+      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <ChainMark chain={origin} />
+        <span className="font-body text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          to
+        </span>
+        <ChainMark chain={destination} align="end" />
+      </div>
+
+      <dl className="m-0 mt-5 grid gap-3 text-sm">
         <Row
-          label="Amount"
-          value={
-            <span className="font-mono tabular text-[var(--text-primary)]">
-              <span aria-label={shown.aria}>{shown.text}</span> $GOR
-            </span>
-          }
+          label="Locks"
+          value={origin === "gorchain" ? `Native $GOR on ${from.shortName}` : `SPL $GOR on ${from.shortName}`}
         />
         <Row
-          label="You receive"
-          value={
-            <span className="font-mono tabular text-acid-500">
-              <span aria-label={shown.aria}>{shown.text}</span> $GOR
-            </span>
-          }
+          label="Unlocks"
+          value={destination === "gorchain" ? `Native $GOR on ${to.shortName}` : `SPL $GOR on ${to.shortName}`}
         />
         <Row
           label="Recipient"
           value={
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1.5">
               <button
                 type="button"
                 className="font-mono text-cyan-500"
                 onClick={async () => {
                   await navigator.clipboard.writeText(recipient);
-                  setCopied("recipient");
-                  setTimeout(() => setCopied(null), 1000);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1000);
                 }}
                 title={recipient}
               >
-                {copied === "recipient" ? "Copied" : truncateAddress(recipient)}
+                {copied ? "Copied" : truncateAddress(recipient)}
               </button>
               <a
                 href={explorerAddressUrl(
@@ -106,33 +118,46 @@ export function ReviewDialog({
           }
         />
       </dl>
+
       {mismatch && (
         <p className="mt-4 mb-0 text-sm text-[var(--yellow-500)]">
-          Recipient is not your connected wallet. Confirm the address before you sign.
+          This is not your connected wallet. Read the address before you sign.
         </p>
       )}
-      <ul className="mt-4 mb-0 pl-4 text-sm text-[var(--text-muted)] space-y-1">
-        <li>This calls the Hyperlane warp program on {CHAINS[origin].shortName}.</li>
-        <li>Sealevel does not quote interchain gas. Relayer enforcement is off.</li>
-        {origin === "gorchain" && (
-          <li>Unlocks on Solana come from SPL already sitting in the escrow. Dry escrow means a stuck message.</li>
-        )}
-        <li>ISM is 1-of-1. One validator key authorizes the far side.</li>
-      </ul>
-      <p className="mt-3 mb-0 text-[11px] font-mono text-[var(--text-muted)] inline-flex items-center gap-1">
-        <Copy size={12} aria-hidden /> Copy gives the raw amount {shown.copy || amount}
+      <p className="mt-4 mb-0 flex items-baseline justify-between gap-3 text-sm">
+        <span className="font-body text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          Fee
+        </span>
+        <span className="font-mono tabular text-[var(--text-primary)]">
+          {feeText ?? "—"}{" "}
+          {feeSymbol && (
+            <span className={feeSymbol === "SOL" ? "font-display text-cyan-500" : "font-display text-pink-500"}>
+              {feeSymbol}
+            </span>
+          )}
+        </span>
       </p>
     </Dialog>
   );
 }
 
+function ChainMark({ chain, align = "start" }: { chain: ChainId; align?: "start" | "end" }) {
+  const meta = CHAINS[chain];
+  return (
+    <div className={`flex items-center gap-2 ${align === "end" ? "flex-row-reverse text-right" : ""}`}>
+      <img src={meta.mark} alt="" width={28} height={28} className="rounded-sm" />
+      <span className="font-bold text-[var(--text-primary)]">{meta.shortName}</span>
+    </div>
+  );
+}
+
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
+    <div className="flex items-baseline justify-between gap-4 border-b border-[var(--border-subtle)] pb-3 last:border-0 last:pb-0">
       <dt className="font-body text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {label}
       </dt>
-      <dd className="m-0 text-[var(--text-primary)]">{value}</dd>
+      <dd className="m-0 text-right text-[var(--text-primary)]">{value}</dd>
     </div>
   );
 }
